@@ -9,7 +9,7 @@ import { StackHeader } from '@/components/stack-header';
 import { SetTypeBadge } from '@/components/set-type-badge';
 import { VideoPlaceholder } from '@/components/video-placeholder';
 import { AppText } from '@/components/ui/app-text';
-import { formatPerformedAt, formatSetLabel } from '@/features/mock-data';
+import { formatPerformedAt, formatSetLabel } from '@/lib/format';
 import { loadSetWithContext } from '@/features/history/services/variant-history-service';
 import { setCompareHref } from '@/lib/navigation';
 import { spacing } from '@/lib/theme/tokens';

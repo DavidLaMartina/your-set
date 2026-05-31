@@ -6,7 +6,7 @@ import { colors, spacing } from '@/lib/theme/tokens';
 export default function TabLayout() {
   return (
     <Tabs
-      initialRouteName="workout"
+      initialRouteName="sessions"
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -21,20 +21,20 @@ export default function TabLayout() {
       }}>
       <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen
-        name="workout"
+        name="sessions"
         options={{
-          title: 'Workout',
+          title: 'Sessions',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="barbell-outline" size={size} color={color} />
+            <Ionicons name="calendar-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="library"
+        name="exercises"
         options={{
-          title: 'Library',
+          title: 'Exercises',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="albums-outline" size={size} color={color} />
+            <Ionicons name="barbell-outline" size={size} color={color} />
           ),
         }}
       />

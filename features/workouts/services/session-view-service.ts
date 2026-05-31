@@ -26,10 +26,8 @@ async function enrichBlock(
   };
 }
 
-/** Most recent open session (ended_at IS NULL), with blocks and sets from SQLite. */
-export async function loadActiveWorkoutView(): Promise<ActiveWorkoutView | null> {
-  const openWorkouts = await WorkoutRepo.listOpenWorkouts();
-  const workout = openWorkouts[0];
+export async function loadSessionView(sessionId: string): Promise<ActiveWorkoutView | null> {
+  const workout = await WorkoutRepo.getWorkoutById(sessionId);
   if (!workout) return null;
 
   const blocks = await WorkoutExerciseRepo.listWorkoutExercises(workout.id);

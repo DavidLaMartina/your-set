@@ -7,7 +7,7 @@ import { Screen } from '@/components/screen';
 import { StackHeader } from '@/components/stack-header';
 import { VideoPlaceholder } from '@/components/video-placeholder';
 import { AppText } from '@/components/ui/app-text';
-import { formatPerformedAt, formatSetLabel } from '@/features/mock-data';
+import { formatPerformedAt, formatSetLabel } from '@/lib/format';
 import { loadSetWithContext } from '@/features/history/services/variant-history-service';
 import * as SetRepo from '@/lib/db/repositories/set-repository';
 import { colors, spacing } from '@/lib/theme/tokens';

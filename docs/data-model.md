@@ -87,20 +87,65 @@ Specific setup under an exercise (primary “movement” for set-first queries).
 | createdAt | TEXT | |
 | updatedAt | TEXT | |
 
-### Workout
+### Workout (session **instance**)
 
-Optional session container.
+One gym visit — a single occurrence in time. **Not** the same as a repeating program day (see **SessionTemplate** below).
 
 | Field | Type | Notes |
 |-------|------|-------|
 | id | TEXT PK | UUID |
-| name | TEXT | Nullable |
+| name | TEXT | Nullable — **legacy / convenience only today**; see gap note below |
 | startedAt | TEXT | Required when session exists |
 | endedAt | TEXT | **Nullable** — explicit “End” only; never required |
 | bodyweight | REAL | Nullable |
 | notes | TEXT | Nullable |
 | createdAt | TEXT | |
 | updatedAt | TEXT | |
+
+#### Current gap (pre–template migration)
+
+| Need | Today |
+|------|--------|
+| Name a session | `workouts.name` column exists; seed sets `"Push A"`; **no UI** to name or rename on start/detail |
+| Many instances of “Push A” | Each row is independent; duplicate `name` strings are **not** linked — **not** true template → instances |
+| Active vs retired rotation | **Not modeled** — all instances appear in one list |
+
+### SessionTemplate (planned — migration 002)
+
+The **definition** of a repeatable session (e.g. “Push A”) — your microcycle slot, not a specific day.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | TEXT PK | UUID |
+| name | TEXT | Required; user-facing label (“Push A”, “Legs A”) |
+| status | TEXT | `active` \| `retired` — rotation membership |
+| rotationSortOrder | INTEGER | Nullable; order in active microcycle shortlist |
+| notes | TEXT | Nullable; program notes for this slot |
+| createdAt | TEXT | |
+| updatedAt | TEXT | |
+
+**Active** templates = current rotation (weekly or user-defined cycle). **Retired** = no longer in rotation but history preserved; user can still open past **instances**.
+
+**Workout** (instance) will gain:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| sessionTemplateId | TEXT FK | Nullable — links instance to template; `NULL` = ad-hoc session |
+
+Display name for an instance: `SessionTemplate.name` + instance date (drop duplicate `workouts.name` over time or keep as one-time override).
+
+```mermaid
+erDiagram
+  SessionTemplate ||--o{ Workout : instances
+  Workout ||--o{ WorkoutExercise : contains
+  Workout ||--o{ Set : optionally_groups
+```
+
+**Flows (planned):**
+
+- **Start Push A** → create new `Workout` with `sessionTemplateId` = Push A template, `startedAt` = now
+- **Push A next week** → another `Workout` row, same `sessionTemplateId`
+- **Retire Push A** → template `status = retired`; past instances unchanged; hidden from “Start” shortlist, visible under Retired / history
 
 ### WorkoutExercise
 

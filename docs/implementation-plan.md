@@ -26,12 +26,11 @@ Path alias: `@/*` → project root (per `tsconfig.json`).
 
 ```
 app/
-  _layout.tsx                 # Root stack, providers, DB init (later)
+  _layout.tsx
   (tabs)/
-    _layout.tsx
-    workout.tsx               # Active workout (primary)
-    library.tsx               # Exercises / variants
-  workout/[id].tsx            # Optional deep link
+    sessions.tsx              # Session list
+    exercises.tsx             # By recent performed_at
+  session/[id].tsx            # Session detail / log (Phase 3)
   variant/[id]/history.tsx
   set/[id]/index.tsx
   set/[id]/compare.tsx
@@ -159,26 +158,63 @@ npm install -D @types/uuid
 
 ---
 
-## Phase 3 — Logging (session + set-only)
+## Phase 2.5 — Tab IA (Sessions vs Exercises)
 
-**Goal:** Log sets to SQLite from Active Workout **or** set-only path; optional session.
+**Goal:** Match navigation to session-first vs exercise-first mental model.
 
 ### Tasks
 
-1. **Set-only log** — variant picker → log set with `performedAt` (default now), `workoutId` null
-2. **Optional session** — start workout, add blocks, log sets with `workoutId` + `workoutExerciseId`
-3. **End session (optional)** — set `endedAt` only; never block set saves
-4. Add variant to workout; reorder blocks
-5. Editable weight/reps; RIR, set type, failure, notes
-6. Replace mock Active Workout / variant history with repository queries
-7. Variant history uses `listByVariant` ordered by `performed_at`
+1. `/(tabs)/sessions` — `listSessions()`; open sessions first; **Start session**
+2. `/session/[id]` — session detail (blocks, sets); **End session** → `ended_at`
+3. `/(tabs)/exercises` — `loadExercisesByRecency()`; variants with last `performed_at`
+4. Remove `/(tabs)/workout` and `/(tabs)/library` tab roots
+5. Update [product-spec.md](./product-spec.md) and [.cursor/plans/your-set-mvp.md](../.cursor/plans/your-set-mvp.md)
 
 ### Acceptance
 
-- [ ] User can log a set with no session and see it in variant history
-- [ ] User can log sets inside a session; query (3) returns correct subset
-- [ ] Session can remain open forever (`endedAt` null)
-- [ ] No video features required yet
+- [ ] Sessions tab lists visits; tap opens that session’s sets
+- [ ] Exercises tab sorted by recent performance, not alphabetical catalog only
+- [ ] + Exercise still works from Exercises tab
+
+---
+
+## Phase 3a — Session templates & rotation
+
+**Goal:** Model repeatable session definitions (Push A), unlimited instances, active vs retired rotation.
+
+See [data-model.md](./data-model.md) — `SessionTemplate` + `workouts.session_template_id`.
+
+### Tasks
+
+1. Migration `002_session_templates.sql`
+2. Template CRUD; list `active` / `retired`
+3. Start instance from template vs ad-hoc
+4. Sessions tab: Rotation | Recent instances | Retired
+5. Edit template name; retire/reactivate
+6. Update seed
+
+### Acceptance
+
+- [ ] Two instances of same template share `session_template_id`
+- [ ] Retired template hidden from start shortlist, instances still browsable
+- [ ] User can rename template without renaming past instances’ display logic breaking
+
+---
+
+## Phase 3b — Logging (session + set-only)
+
+**Goal:** Log sets inside an instance or without any session.
+
+### Tasks
+
+1. Set-only log from Exercises / variant history
+2. Add variant to session; log sets with live entry
+3. Editable weight/reps; RIR, set type, failure, notes
+
+### Acceptance
+
+- [ ] Full logging path works for template-backed instances
+- [ ] `endedAt` still optional
 
 ---
 

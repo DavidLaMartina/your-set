@@ -7,20 +7,25 @@ import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { AppText } from '@/components/ui/app-text';
 import {
-  loadLibrary,
-  type ExerciseWithVariants,
-} from '@/features/exercises/services/library-service';
-import { exerciseDetailHref, newExerciseHref, variantHistoryHref } from '@/lib/navigation';
+  loadExercisesByRecency,
+  type ExerciseWithRecency,
+} from '@/features/exercises/services/exercises-tab-service';
+import { formatDate, formatPerformedAt } from '@/lib/format';
+import {
+  exerciseDetailHref,
+  newExerciseHref,
+  variantHistoryHref,
+} from '@/lib/navigation';
 import { colors, spacing } from '@/lib/theme/tokens';
 
-export default function LibraryScreen() {
-  const [library, setLibrary] = useState<ExerciseWithVariants[]>([]);
+export default function ExercisesScreen() {
+  const [items, setItems] = useState<ExerciseWithRecency[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      setLibrary(await loadLibrary());
+      setItems(await loadExercisesByRecency());
     } finally {
       setLoading(false);
     }
@@ -35,31 +40,35 @@ export default function LibraryScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <AppText variant="titleLarge">Library</AppText>
+        <AppText variant="titleLarge">Exercises</AppText>
         <AppText variant="caption" muted>
-          Exercises and variants — stored locally
+          Sorted by most recently performed
         </AppText>
       </View>
 
       <PrimaryButton label="+ Exercise" onPress={() => router.push(newExerciseHref())} />
 
-      {loading && library.length === 0 ? (
+      {loading && items.length === 0 ? (
         <AppText variant="body" muted>
           Loading…
         </AppText>
       ) : null}
 
-      {!loading && library.length === 0 ? (
+      {!loading && items.length === 0 ? (
         <AppText variant="body" muted>
-          No exercises yet. Add your first exercise.
+          No exercises yet. Add your first movement.
         </AppText>
       ) : null}
 
-      {library.map(({ exercise, variants }) => (
+      {items.map(({ exercise, lastPerformedAt, variants }) => (
         <Card
           key={exercise.id}
           title={exercise.name}
-          subtitle={exercise.defaultMuscleGroup ?? undefined}
+          subtitle={
+            lastPerformedAt
+              ? `Last performed ${formatDate(lastPerformedAt)}`
+              : exercise.defaultMuscleGroup ?? 'No sets logged'
+          }
           onHeaderPress={() => router.push(exerciseDetailHref(exercise.id))}
           headerRight={
             <AppText variant="caption" color={colors.accent.secondary}>
@@ -72,15 +81,25 @@ export default function LibraryScreen() {
                 No variants — open exercise to add
               </AppText>
             ) : (
-              variants.map((variant) => (
-                <AppText
-                  key={variant.id}
-                  variant="body"
-                  color={colors.accent.secondary}
-                  onPress={() => router.push(variantHistoryHref(variant.id))}>
-                  {variant.name}
-                  {variant.equipment ? ` · ${variant.equipment}` : ''}
-                </AppText>
+              variants.map(({ variant, lastPerformedAt: variantLast }) => (
+                <View key={variant.id} style={styles.variantRow}>
+                  <AppText
+                    variant="body"
+                    color={colors.accent.secondary}
+                    onPress={() => router.push(variantHistoryHref(variant.id))}>
+                    {variant.name}
+                    {variant.equipment ? ` · ${variant.equipment}` : ''}
+                  </AppText>
+                  {variantLast ? (
+                    <AppText variant="caption" muted>
+                      {formatPerformedAt(variantLast)}
+                    </AppText>
+                  ) : (
+                    <AppText variant="caption" muted>
+                      No sets yet
+                    </AppText>
+                  )}
+                </View>
               ))
             )}
           </View>
@@ -96,5 +115,8 @@ const styles = StyleSheet.create({
   },
   variantList: {
     gap: spacing.md,
+  },
+  variantRow: {
+    gap: 2,
   },
 });

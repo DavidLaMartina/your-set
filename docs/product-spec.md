@@ -91,16 +91,31 @@ Users may only ever log sets (no session). Users may use sessions and optionally
 
 ## Priority screens
 
-### 1. Active Workout
+### 1. Sessions tab
 
-- Optional session header (name, elapsed, bodyweight) when `workoutId` is set
+**Today:** list of session **instances** (open first, then past); Start creates a new ad-hoc instance; seed name `"Push A"` is a plain string with no edit UI.
+
+**Planned (Phase 3a):**
+
+- **Rotation** — active session **definitions** (e.g. Push A); start a new **instance** each time
+- **Recent instances** — Push A this week, Push A next week, etc. as separate visits
+- **Retired definitions** — off rotation but history preserved
+- Rename template; retire/reactivate slot
+
+### 2. Session detail (stack)
+
+- Session header (name, elapsed or ended, bodyweight)
 - **End** — optional; sets `endedAt` only
-- Exercise blocks (variant name, notes)
-- Dense set rows: weight × reps, set type badge, video icon
-- Quick add set, attach video, inline notes
-- Optimized for one-handed gym use
+- Exercise blocks with sets (read-only until Phase 3 logging)
+- Optimized for one-handed gym use when logging (Phase 3)
 
-### 2. Exercise Variant History
+### 3. Exercises tab
+
+- Exercises sorted by most recently performed (`performedAt` across variants)
+- Variants under each exercise, each with last performed time
+- Tap variant → variant history; tap manage → exercise detail / CRUD
+
+### 4. Exercise Variant History
 
 - Variant title + exercise context
 - Recent sets timeline
@@ -109,25 +124,25 @@ Users may only ever log sets (no session). Users may use sessions and optionally
 - Thumbnails / video badges
 - Filters: load range, reps, date, set type
 
-### 3. Set Detail
+### 5. Set Detail
 
 - All set fields
 - Video: thumbnail, play, or missing component
 - Actions: relink, remove reference, open compare
 
-### 4. Video Compare
+### 6. Video Compare
 
 - Two-up video layout
 - Metadata under each (weight, reps, date, set type, angle)
 - Notes
 - Change comparison target
 
-### 5. Exercise / Variant Manager
+### 7. Exercise / Variant Manager (stack)
 
 - List exercises → drill into variants
 - CRUD with equipment, muscle group, setup notes
 
-### 6. Missing Video state
+### 8. Missing Video state
 
 Message:
 

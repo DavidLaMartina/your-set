@@ -1,6 +1,16 @@
 import type { Href } from 'expo-router';
 
-/** Typed-route safe hrefs (regenerate via `npx expo start` when routes change). */
+export function sessionsTabHref(): Href {
+  return '/(tabs)/sessions' as Href;
+}
+
+export function exercisesTabHref(): Href {
+  return '/(tabs)/exercises' as Href;
+}
+
+export function sessionDetailHref(sessionId: string): Href {
+  return `/session/${sessionId}` as Href;
+}
 
 export function variantHistoryHref(variantId: string): Href {
   return `/variant/${variantId}/history` as Href;
@@ -25,4 +35,3 @@ export function newExerciseHref(): Href {
 export function newVariantHref(exerciseId: string): Href {
   return `/exercises/${exerciseId}/variant-new` as Href;
 }
-

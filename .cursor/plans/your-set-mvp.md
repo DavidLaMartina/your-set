@@ -3,173 +3,111 @@
 > Living plan for the local-first visual training logbook. Update this file as scope and phases change.
 
 **Last updated:** 2026-05-31  
-**Status:** Phase 2 complete — SQLite, CRUD, library + DB-backed history
+**Status:** Phase 2.5 done locally; Phase 3a (templates + rotation) planned next
 
 ## Product summary
 
-**Your Set** is a private, local-first visual logbook for serious lifters. Users log sets, attach videos from the device photo library, and compare performances over time. Not a beginner app, coaching platform, or social product.
-
-**MVP constraints:** Expo RN, TypeScript, Expo Router, SQLite, local video references only. No auth, backend, cloud video, payments, or social.
+**Your Set** is a private, local-first visual logbook for serious lifters. Users log sets, attach videos from the device photo library, and compare performances over time.
 
 ## Documentation index
 
 | Doc | Purpose |
 |-----|---------|
-| [docs/product-spec.md](../../docs/product-spec.md) | Positioning, flows, screens, out-of-scope |
-| [docs/implementation-plan.md](../../docs/implementation-plan.md) | Phased build order, milestones, acceptance |
-| [docs/data-model.md](../../docs/data-model.md) | Entities, fields, SQLite sketch, sync hooks |
-| [docs/design-system.md](../../docs/design-system.md) | Tokens, typography, components, gym UX |
-| [docs/cursor-rules.md](../../docs/cursor-rules.md) | Agent/dev conventions for this repo |
+| [docs/product-spec.md](../../docs/product-spec.md) | Positioning, flows, screens |
+| [docs/data-model.md](../../docs/data-model.md) | Entities — includes **SessionTemplate** (planned) |
+| [docs/implementation-plan.md](../../docs/implementation-plan.md) | Phased build order |
 
-## Recommended architecture
-
-```
-app/                    # Expo Router routes only (thin)
-features/               # Domain modules (exercises, workouts, sets, video)
-  <domain>/
-    components/         # Screen-specific UI
-    hooks/
-    services/           # Business logic
-    types.ts
-lib/
-  db/                   # SQLite init, migrations, query helpers
-  media/                # Photo library refs, availability checks
-  theme/                # Design tokens (replaces starter Colors)
-components/             # Shared UI primitives (Button, Card, SetRow, …)
-constants/              # App-wide non-theme constants
-types/                  # Shared domain types (or colocated in features)
-```
-
-**Principles**
-
-- UI routes stay thin; persistence and rules live in `features/*/services` and `lib/db`.
-- **Set-centric:** every set has `exerciseVariantId` + `performedAt`; `workoutId` optional.
-- **Three query modes** — see [docs/data-model.md](../../docs/data-model.md) and `lib/db/queries.ts`.
-- **`endedAt` optional** — never required to log or view sets.
-- Repositories wrap SQL; services orchestrate transactions and domain rules.
-- Video layer stores metadata + `assetId`/`uri`; never copies video files into app storage for MVP.
-- IDs: UUID strings from day one (easier future sync than auto-increment).
-- Timestamps: ISO 8601 strings in SQLite (`TEXT`).
-
-## Navigation (target)
+## Navigation (current)
 
 | Route | Screen |
 |-------|--------|
-| `/(tabs)/workout` | Active workout (primary tab) |
-| `/(tabs)/library` | Exercises / variants manager |
-| `/(tabs)/history` | Recent workouts list (optional Phase 2+) |
-| `/workout/[id]` | Active or past workout detail |
-| `/variant/[id]/history` | Exercise variant history |
-| `/set/[id]` | Set detail |
-| `/set/[id]/compare` | Video compare |
-| `/exercises` | Exercise/variant manager (stack) |
+| `/(tabs)/sessions` | Instance list + Start session (ad-hoc instance today) |
+| `/(tabs)/exercises` | Exercises by recent `performed_at` |
+| `/session/[id]` | One instance — blocks, sets, End |
+| `/variant/[id]/history`, `/set/[id]`, … | Set-first drill-down |
 
-Starter `(tabs)/index` + `explore` will be replaced during Phase 1.
+## Session model — current vs target
+
+### Today (schema v1)
+
+- **`workouts`** = one row per gym visit (instance).
+- **`workouts.name`** optional string — seed uses `"Push A"`; **no UI** to set or edit name.
+- **No** link between multiple `"Push A"` rows — they are not instances of one definition.
+- **No** active / retired rotation.
+
+### Target (schema v2 — SessionTemplate)
+
+| Concept | Entity | Example |
+|---------|--------|---------|
+| **Definition** (rotation slot) | `SessionTemplate` | “Push A” — active in microcycle |
+| **Instance** (one visit) | `Workout` + `sessionTemplateId` | Push A on 2026-05-31 |
+| **Another instance** | New `Workout`, same template id | Push A next week |
+| **Retired definition** | `SessionTemplate.status = retired` | Old “Push A” after program change; instances kept |
+
+**Sessions tab (target UX):**
+
+1. **Rotation** — active templates, start new instance per template  
+2. **Recent instances** — chronological visits (all templates + ad-hoc)  
+3. **Retired** — retired templates; drill into past instances  
+
+**Naming:** edit `SessionTemplate.name`; instances inherit label (optional per-instance notes only).
 
 ## Implementation phases
 
 ### Phase 1 — Foundation & static UI
 
-- [x] Confirm Expo 54 / Router 6 / TS strict (done in repo)
-- [x] Replace starter theme with dark-first tokens (`lib/theme`)
-- [x] Add `features/` + `lib/` folder scaffold
-- [x] Mock data module for realistic lifting data
-- [x] Static screens: Active Workout, Variant History, Video Compare (+ Set Detail, Library)
-- [x] Shared primitives: `Screen`, `Card`, `SetRow`, `DenseInput`, `VideoBadge`, `MissingVideo`
-- [x] Switch `userInterfaceStyle` to `dark` default in `app.json`
-
-**Exit:** Three core screens navigable with mock data; looks like final product tone.
+- [x] Complete
 
 ### Phase 2 — SQLite & CRUD
 
-- [x] Schema `lib/db/migrations/001_initial.sql` (set-centric, optional session)
-- [x] Query templates `lib/db/queries.ts`, mappers `lib/db/map-row.ts`
-- [x] Domain types + `SetListFilters` in `types/domain.ts`
-- [x] Add `expo-sqlite` + `lib/db/client.ts` migration runner
-- [x] Repositories: Exercise, ExerciseVariant, Set (three query modes), Workout, WorkoutExercise
-- [x] Exercise/Variant Manager wired to DB (Library + `/exercises/*`)
-- [x] Seed on first launch; variant history + set detail from SQLite
+- [x] Complete
 
-**Exit:** Sets persist with `performedAt`; sets without `workoutId` query correctly; variants CRUD works.
+### Phase 2.5 — Tab IA (Sessions vs Exercises)
 
-### Phase 3 — Logging (session + set-only)
+- [x] Sessions list; Exercises by recency; `/session/[id]`; End session
+- [x] **Not in scope:** template/rotation (documented above)
 
-- [ ] Set-only log path (`workoutId` null)
-- [ ] Optional session: start workout, add blocks, log sets with session link
-- [ ] Optional **End** → `endedAt` only
-- [ ] Fast set entry; RIR, set type, failure, notes
-- [ ] Variant history + Active Workout from DB (`performed_at` ordering)
+### Phase 3a — Session templates & rotation (next schema work)
 
-**Exit:** Session users and set-only users both supported; no video yet.
+- [ ] Migration `002`: `session_templates` table; `workouts.session_template_id` FK
+- [ ] Migrate seed: create template “Push A” (active) + instance linked to it
+- [ ] Repositories + services for templates (CRUD, list active/retired)
+- [ ] **Start session** → pick active template OR ad-hoc; creates **new instance**
+- [ ] **Rename template**; **retire / reactivate** template
+- [ ] Sessions tab sections: Rotation | Recent instances | Retired
+- [ ] Deprecate relying on duplicate `workouts.name` alone
+
+**Exit:** Multiple Push A weeks are distinct instances of one template; rotation shortlist works.
+
+### Phase 3b — Logging (session + set-only)
+
+- [ ] Log sets inside instance; set-only without template
+- [ ] Add variant to session block; editable weight/reps, RIR, set type
+
+**Exit:** Full gym logging without workarounds.
 
 ### Phase 4 — Local video references
 
-- [ ] `expo-media-library` + `expo-image-picker` (permissions in `app.json`)
-- [ ] SetVideo repository + availability checker
-- [ ] Attach / relink / remove video on set
-- [ ] Thumbnails via `expo-video-thumbnails` if stable on target SDK
-- [ ] Missing video UI component + Set Detail integration
-
-**Exit:** Videos attach from library; deleted library assets show graceful missing state.
+- [ ] Attach, play, missing video
 
 ### Phase 5 — History & compare
 
-- [ ] Variant history queries (recent, best, comparable filters)
-- [ ] Comparable-set heuristic (same variant, similar load/reps band)
-- [ ] Video Compare screen with side-by-side playback (`expo-video`)
-- [ ] Pick alternate comparison target
-
-**Exit:** User can review progression and compare two set videos.
+- [ ] Filters; video compare playback
 
 ### Phase 6 — Polish
 
-- [ ] Physical iPhone pass (one-handed, glare, tap targets)
-- [ ] Error boundaries / empty states
-- [ ] Optional: JSON export of local DB
-- [ ] Remove starter template code
-- [ ] Update README for Your Set
-
-**Exit:** MVP shippable to TestFlight-internal testing.
-
-## First implementation task (when coding starts)
-
-**Phase 1, Step 1:** Add `lib/theme/tokens.ts` and refactor root layout to force dark theme; add `features/mock-data` and route `app/(tabs)/workout.tsx` with static Active Workout UI using shared `SetRow` / `Card` components.
-
-## Dependency changes (before Phase 2+)
-
-| Package | Phase | Notes |
-|---------|-------|-------|
-| `expo-sqlite` | 2 | Local persistence |
-| `expo-media-library` | 4 | Asset IDs, permissions |
-| `expo-image-picker` | 4 | Pick/record video |
-| `expo-video` | 4–5 | Playback |
-| `expo-video-thumbnails` | 4 | Optional thumbnails |
-| `uuid` or `expo-crypto` | 2 | Client-generated IDs |
-
-Do **not** add yet: Clerk, Prisma, Sentry, PostHog, RevenueCat, any HTTP client for backend.
-
-## Future architecture (do not build now)
-
-- Postgres + Fastify/NestJS API
-- Clerk auth, S3 presigned uploads, CloudFront
-- Optional paid cloud archive (RevenueCat)
-- Coach portal (Next.js)
-- Sync: last-write-wins or CRDT for log text; videos stay optional cloud
-
-Keep repository interfaces narrow so a `RemoteWorkoutRepository` can sit beside `LocalWorkoutRepository` later.
+- [ ] Device pass, export, README
 
 ## Open decisions
 
-- [ ] Tab bar: Workout + Library only vs. add History tab in MVP
-- [ ] Weight unit: lb vs kg vs per-profile (default lb for US gym?)
-- [ ] Rest timer: out of scope unless requested
-- [ ] Web target: deprioritize; iOS-first MVP
+- [x] Tabs: Sessions + Exercises
+- [ ] **Template default exercises** (planned blocks per Push A) — defer post-3a or include in 3a?
+- [ ] Weight unit: lb vs kg
+- [ ] Microcycle length label in UI (“This week”) — copy only, no calendar sync required for MVP
 
 ## Changelog
 
 | Date | Change |
 |------|--------|
-| 2026-05-31 | Initial plan and docs created from product prompt |
-| 2026-05-31 | Phase 1: dark theme, mock data, Workout/Library tabs, history/compare/set detail screens |
-| 2026-05-31 | Set-centric data model: `performedAt`, optional `workoutId`, SQL migration + mock orphan set |
-| 2026-05-31 | Phase 2: expo-sqlite, repositories, seed, library CRUD, DB-backed variant history |
+| 2026-05-31 | Phase 2.5: Sessions + Exercises tabs |
+| 2026-05-31 | Plan: SessionTemplate, instances, active/retired rotation (Phase 3a) |
