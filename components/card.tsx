@@ -8,16 +8,30 @@ type CardProps = {
   children: ReactNode;
   title?: string;
   subtitle?: string;
+  /** Navigates from title/chevron only — set rows and actions stay independent. */
+  onHeaderPress?: () => void;
+  /** Press anywhere on the card (avoid on workout blocks with set rows). */
   onPress?: () => void;
   style?: ViewStyle;
   headerRight?: ReactNode;
 };
 
-export function Card({ children, title, subtitle, onPress, style, headerRight }: CardProps) {
-  const content = (
-    <>
-      {(title || subtitle || headerRight) && (
-        <View style={styles.header}>
+export function Card({
+  children,
+  title,
+  subtitle,
+  onHeaderPress,
+  onPress,
+  style,
+  headerRight,
+}: CardProps) {
+  const header = (title || subtitle || headerRight) && (
+    <View style={styles.header}>
+      {onHeaderPress ? (
+        <Pressable
+          onPress={onHeaderPress}
+          style={({ pressed }) => [styles.headerPressable, pressed && styles.pressed]}
+          accessibilityRole="button">
           <View style={styles.headerText}>
             {title ? (
               <AppText variant="titleMedium" numberOfLines={2}>
@@ -31,8 +45,30 @@ export function Card({ children, title, subtitle, onPress, style, headerRight }:
             ) : null}
           </View>
           {headerRight}
-        </View>
+        </Pressable>
+      ) : (
+        <>
+          <View style={styles.headerText}>
+            {title ? (
+              <AppText variant="titleMedium" numberOfLines={2}>
+                {title}
+              </AppText>
+            ) : null}
+            {subtitle ? (
+              <AppText variant="caption" muted numberOfLines={2}>
+                {subtitle}
+              </AppText>
+            ) : null}
+          </View>
+          {headerRight}
+        </>
       )}
+    </View>
+  );
+
+  const content = (
+    <>
+      {header}
       {children}
     </>
   );
@@ -66,6 +102,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  headerPressable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
   headerText: {

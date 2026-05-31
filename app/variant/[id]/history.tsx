@@ -57,7 +57,10 @@ export default function VariantHistoryScreen() {
     return (
       <Screen scroll={false} padded>
         <StackHeader title="Not found" />
-        <AppText muted>No variant for this id.</AppText>
+        <AppText muted>
+          Variant not found. If you opened this from the Workout tab before a reload, go back and
+          try again — IDs now come from the local database.
+        </AppText>
       </Screen>
     );
   }

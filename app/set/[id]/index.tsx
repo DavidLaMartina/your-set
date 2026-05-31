@@ -43,7 +43,10 @@ export default function SetDetailScreen() {
     return (
       <Screen scroll={false} padded>
         <StackHeader title="Set" />
-        <AppText muted>Set not found.</AppText>
+        <AppText muted>
+          Set not found in the database. Workout-tab sets now use saved IDs — reload the app if you
+          still see this after opening a set from the current workout.
+        </AppText>
       </Screen>
     );
   }

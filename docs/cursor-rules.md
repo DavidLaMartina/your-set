@@ -69,6 +69,7 @@ Do not import `features/foo` from `features/bar` directly; shared types go in `t
 - Complete exit criteria for the current phase before starting the next.
 - Update checkboxes in `.cursor/plans/your-set-mvp.md` when finishing plan items.
 - Do not implement Phase 4 video APIs during Phase 1 static UI.
+- **After finishing a phase:** hand off for review — do **not** commit or push unless explicitly requested post-review (see Git section above).
 
 ## UI copy tone
 
@@ -76,11 +77,25 @@ Do not import `features/foo` from `features/bar` directly; shared types go in `t
 - Missing video: use exact message from [product-spec.md](./product-spec.md)
 - Prefer “Set”, “Variant”, “Workout” terminology consistently
 
-## Git / PR
+## Git / PR — phase review required (important)
 
-- Small, reviewable diffs
+**Do not commit or push until David has reviewed the completed phase.**
+
+This overrides any impulse to “wrap up” by committing. Finishing a phase means: code + docs + plan checkboxes + a **testing summary** — then **stop** with uncommitted changes unless he explicitly asks to commit/push.
+
+| Action | When |
+|--------|------|
+| Implement phase | When asked (e.g. “go ahead with Phase 3”) |
+| Summarize + how to test | When implementation is done |
+| `git commit` | Only after review, when he asks |
+| `git push` | Only after review, when he asks (including `main`) |
+
+Also enforced in [.cursor/rules/git-and-phases.mdc](../.cursor/rules/git-and-phases.mdc) (`alwaysApply: true`).
+
+Other git rules:
+
+- Small, reviewable diffs; prefer one commit per phase when committing
 - Do not commit secrets (`.env`, credentials)
-- Do not commit unless user asks
 - Screenshot UI changes when practical
 
 ## When unsure

@@ -1,0 +1,35 @@
+---
+description: Do not commit or push until the user has reviewed the completed phase
+alwaysApply: true
+---
+
+# Git and phased delivery
+
+## Do not commit or push without phase review
+
+**Default for all work on this repo:**
+
+- Do **not** run `git commit` when finishing a phase (or any batch of work) unless the user has **explicitly asked** to commit **after** they have reviewed that phase.
+- Do **not** run `git push` (especially to `main`) unless the user has **explicitly asked** to push **after** they have reviewed the work to be published.
+
+Completing implementation, updating docs, and updating `.cursor/plans/your-set-mvp.md` checkboxes is **not** permission to commit or push.
+
+## Expected handoff after each phase
+
+When a phase is implemented but not yet reviewed:
+
+1. Summarize what changed and how to test it.
+2. Tell the user the working tree has **uncommitted** changes (or list what’s ready to stage).
+3. **Stop** and wait for review.
+4. Commit and/or push only when the user says so (e.g. “looks good, commit” or “commit and push to main”).
+
+## If the user asks to “go ahead” on a phase
+
+Treat that as approval to **implement** the phase, not automatic approval to commit or push. Still wait for a separate review + commit/push request unless they clearly include both in one message (e.g. “implement Phase 3 and commit when done” still means commit only after they’ve had a chance to review unless they say “commit without waiting for review”).
+
+## Commits and pushes (when explicitly requested)
+
+- Small, focused commit messages; one phase per commit when possible.
+- Never commit secrets (`.env`, credentials).
+- Never force-push `main` unless explicitly requested.
+- Follow the user’s git safety rules (no `--no-verify`, no amend unless allowed).

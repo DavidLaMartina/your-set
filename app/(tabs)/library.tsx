@@ -60,11 +60,16 @@ export default function LibraryScreen() {
           key={exercise.id}
           title={exercise.name}
           subtitle={exercise.defaultMuscleGroup ?? undefined}
-          onPress={() => router.push(exerciseDetailHref(exercise.id))}>
+          onHeaderPress={() => router.push(exerciseDetailHref(exercise.id))}
+          headerRight={
+            <AppText variant="caption" color={colors.accent.secondary}>
+              Manage →
+            </AppText>
+          }>
           <View style={styles.variantList}>
             {variants.length === 0 ? (
               <AppText variant="caption" muted>
-                No variants — tap card to add
+                No variants — open exercise to add
               </AppText>
             ) : (
               variants.map((variant) => (
