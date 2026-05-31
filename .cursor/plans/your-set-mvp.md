@@ -3,7 +3,7 @@
 > Living plan for the local-first visual training logbook. Update this file as scope and phases change.
 
 **Last updated:** 2026-05-31  
-**Status:** Phase 1 complete; set-centric schema + docs ready for Phase 2
+**Status:** Phase 2 complete — SQLite, CRUD, library + DB-backed history
 
 ## Product summary
 
@@ -85,9 +85,10 @@ Starter `(tabs)/index` + `explore` will be replaced during Phase 1.
 - [x] Schema `lib/db/migrations/001_initial.sql` (set-centric, optional session)
 - [x] Query templates `lib/db/queries.ts`, mappers `lib/db/map-row.ts`
 - [x] Domain types + `SetListFilters` in `types/domain.ts`
-- [ ] Add `expo-sqlite` + `lib/db/client.ts` migration runner
-- [ ] Repositories: Exercise, ExerciseVariant, Set (three query modes), Workout, WorkoutExercise
-- [ ] Exercise/Variant Manager wired to DB
+- [x] Add `expo-sqlite` + `lib/db/client.ts` migration runner
+- [x] Repositories: Exercise, ExerciseVariant, Set (three query modes), Workout, WorkoutExercise
+- [x] Exercise/Variant Manager wired to DB (Library + `/exercises/*`)
+- [x] Seed on first launch; variant history + set detail from SQLite
 
 **Exit:** Sets persist with `performedAt`; sets without `workoutId` query correctly; variants CRUD works.
 
@@ -171,3 +172,4 @@ Keep repository interfaces narrow so a `RemoteWorkoutRepository` can sit beside 
 | 2026-05-31 | Initial plan and docs created from product prompt |
 | 2026-05-31 | Phase 1: dark theme, mock data, Workout/Library tabs, history/compare/set detail screens |
 | 2026-05-31 | Set-centric data model: `performedAt`, optional `workoutId`, SQL migration + mock orphan set |
+| 2026-05-31 | Phase 2: expo-sqlite, repositories, seed, library CRUD, DB-backed variant history |

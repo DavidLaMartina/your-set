@@ -13,3 +13,16 @@ export function setDetailHref(setId: string): Href {
 export function setCompareHref(setId: string): Href {
   return `/set/${setId}/compare` as Href;
 }
+
+export function exerciseDetailHref(exerciseId: string): Href {
+  return `/exercises/${exerciseId}` as Href;
+}
+
+export function newExerciseHref(): Href {
+  return '/exercises/new' as Href;
+}
+
+export function newVariantHref(exerciseId: string): Href {
+  return `/exercises/${exerciseId}/variant-new` as Href;
+}
+

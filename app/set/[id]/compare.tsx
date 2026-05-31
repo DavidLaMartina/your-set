@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/primary-button';
@@ -6,26 +7,50 @@ import { Screen } from '@/components/screen';
 import { StackHeader } from '@/components/stack-header';
 import { VideoPlaceholder } from '@/components/video-placeholder';
 import { AppText } from '@/components/ui/app-text';
-import {
-  formatPerformedAt,
-  formatSetLabel,
-  getMockSetById,
-  mockPriorCompareSet,
-} from '@/features/mock-data';
-import { MOCK_IDS } from '@/features/mock-data/ids';
+import { formatPerformedAt, formatSetLabel } from '@/features/mock-data';
+import { loadSetWithContext } from '@/features/history/services/variant-history-service';
+import * as SetRepo from '@/lib/db/repositories/set-repository';
 import { colors, spacing } from '@/lib/theme/tokens';
-import { SET_TYPE_LABELS, type SetWithVideo } from '@/types/domain';
+import { SET_TYPE_LABELS, type HistorySetRow } from '@/types/domain';
 
 export default function VideoCompareScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const currentSet =
-    id === MOCK_IDS.setTodayTop || id === MOCK_IDS.setPriorCompare
-      ? getMockSetById(id) ?? getMockSetById(MOCK_IDS.setTodayTop)
-      : getMockSetById(id ?? MOCK_IDS.setTodayTop);
+  const [left, setLeft] = useState<HistorySetRow | null>(null);
+  const [right, setRight] = useState<HistorySetRow | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const priorSet = mockPriorCompareSet;
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      setLoading(true);
+      const current = await loadSetWithContext(id);
+      setLeft(current);
 
-  if (!currentSet) {
+      if (current) {
+        const peers = await SetRepo.listSetsByVariant({
+          exerciseVariantId: current.exerciseVariantId,
+        });
+        const prior = peers.find(
+          (s) => s.id !== current.id && s.setType === 'top_set',
+        );
+        if (prior) {
+          setRight(await loadSetWithContext(prior.id));
+        }
+      }
+      setLoading(false);
+    })();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <Screen scroll={false} padded>
+        <StackHeader title="Compare" />
+        <AppText muted>Loading…</AppText>
+      </Screen>
+    );
+  }
+
+  if (!left) {
     return (
       <Screen scroll={false} padded>
         <StackHeader title="Compare" />
@@ -34,25 +59,30 @@ export default function VideoCompareScreen() {
     );
   }
 
-  const left = currentSet.id === priorSet.id ? getMockSetById(MOCK_IDS.setTodayTop)! : currentSet;
-  const right = priorSet;
-
   return (
     <Screen>
       <StackHeader title="Compare" subtitle="Side-by-side — playback in Phase 4" />
       <View style={styles.panes}>
-        <ComparePane label="Current" set={left} />
-        <ComparePane label="Prior" set={right} />
+        <ComparePane label="Selected" set={left} />
+        {right ? (
+          <ComparePane label="Prior top" set={right} />
+        ) : (
+          <View style={styles.pane}>
+            <AppText variant="caption" muted>
+              No prior top set to compare
+            </AppText>
+          </View>
+        )}
       </View>
       <AppText variant="caption" muted style={styles.note}>
-        Phase 1 uses placeholders. Real video playback arrives in Phase 4.
+        Phase 4 adds real video playback.
       </AppText>
-      <PrimaryButton label="Change comparison target" variant="ghost" onPress={() => router.back()} />
+      <PrimaryButton label="Back" variant="ghost" onPress={() => router.back()} />
     </Screen>
   );
 }
 
-function ComparePane({ label, set }: { label: string; set: SetWithVideo }) {
+function ComparePane({ label, set }: { label: string; set: HistorySetRow }) {
   const videoStatus = set.video?.availabilityStatus ?? 'none';
 
   return (

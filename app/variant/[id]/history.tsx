@@ -1,4 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
@@ -7,14 +8,50 @@ import { StackHeader } from '@/components/stack-header';
 import { SetTypeBadge } from '@/components/set-type-badge';
 import { VideoBadge } from '@/components/video-badge';
 import { AppText } from '@/components/ui/app-text';
-import { formatPerformedAt, formatSetLabel, getMockVariantHistory } from '@/features/mock-data';
-import { setCompareHref, setDetailHref } from '@/lib/navigation';
-import { colors, spacing } from '@/lib/theme/tokens';
-import type { HistorySetRow } from '@/types/domain';
+import { formatPerformedAt, formatSetLabel } from '@/features/mock-data';
+import { loadVariantHistory } from '@/features/history/services/variant-history-service';
+import { setDetailHref } from '@/lib/navigation';
+import { spacing } from '@/lib/theme/tokens';
+import type { HistorySetRow, VariantHistoryView } from '@/types/domain';
 
 export default function VariantHistoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const history = id ? getMockVariantHistory(id) : null;
+  const [history, setHistory] = useState<VariantHistoryView | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      setHistory(await loadVariantHistory(id));
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+    }, [refresh]),
+  );
+
+  if (!id) {
+    return (
+      <Screen scroll={false} padded>
+        <StackHeader title="Not found" />
+        <AppText muted>Missing variant id.</AppText>
+      </Screen>
+    );
+  }
+
+  if (loading && !history) {
+    return (
+      <Screen scroll={false} padded>
+        <StackHeader title="History" />
+        <AppText muted>Loading…</AppText>
+      </Screen>
+    );
+  }
 
   if (!history) {
     return (
@@ -87,14 +124,6 @@ function HistorySetCard({ row }: { row: HistorySetRow }) {
         {row.workoutId ? (row.workoutName ? ` · ${row.workoutName}` : ' · Session') : ' · No session'}
         {row.rir != null ? ` · RIR ${row.rir}` : ''}
       </AppText>
-      {row.video?.availabilityStatus === 'available' ? (
-        <AppText
-          variant="label"
-          color={colors.accent.secondary}
-          onPress={() => router.push(setCompareHref(row.id))}>
-          Compare video
-        </AppText>
-      ) : null}
     </Card>
   );
 }

@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { MissingVideo } from '@/components/missing-video';
@@ -8,15 +9,35 @@ import { StackHeader } from '@/components/stack-header';
 import { SetTypeBadge } from '@/components/set-type-badge';
 import { VideoPlaceholder } from '@/components/video-placeholder';
 import { AppText } from '@/components/ui/app-text';
-import { MOCK_IDS } from '@/features/mock-data/ids';
-import { formatPerformedAt, formatSetLabel, getMockSetById } from '@/features/mock-data';
+import { formatPerformedAt, formatSetLabel } from '@/features/mock-data';
+import { loadSetWithContext } from '@/features/history/services/variant-history-service';
 import { setCompareHref } from '@/lib/navigation';
 import { spacing } from '@/lib/theme/tokens';
+import type { HistorySetRow } from '@/types/domain';
 import { SET_TYPE_LABELS } from '@/types/domain';
 
 export default function SetDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const set = id ? getMockSetById(id) : undefined;
+  const [set, setSet] = useState<HistorySetRow | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      setLoading(true);
+      setSet(await loadSetWithContext(id));
+      setLoading(false);
+    })();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <Screen scroll={false} padded>
+        <StackHeader title="Set" />
+        <AppText muted>Loading…</AppText>
+      </Screen>
+    );
+  }
 
   if (!set) {
     return (
@@ -29,8 +50,6 @@ export default function SetDetailScreen() {
 
   const videoStatus = set.video?.availabilityStatus ?? 'none';
   const isMissing = videoStatus === 'missing' || videoStatus === 'permissionDenied';
-  const canCompare =
-    set.video?.availabilityStatus === 'available' || id === MOCK_IDS.setTodayTop;
 
   return (
     <Screen>
@@ -43,7 +62,11 @@ export default function SetDetailScreen() {
       <Metadata label="Performed" value={formatPerformedAt(set.performedAt)} />
       <Metadata
         label="Session"
-        value={set.workoutId ? 'In session' : 'None (set-only log)'}
+        value={
+          set.workoutId
+            ? set.workoutName ?? 'In session'
+            : 'None (set-only log)'
+        }
       />
       <Metadata label="Set type" value={SET_TYPE_LABELS[set.setType]} />
       {set.rir != null ? <Metadata label="RIR" value={String(set.rir)} /> : null}
@@ -60,12 +83,10 @@ export default function SetDetailScreen() {
         />
       )}
 
-      {canCompare ? (
-        <PrimaryButton
-          label="Compare with prior set"
-          onPress={() => router.push(setCompareHref(set.id))}
-        />
-      ) : null}
+      <PrimaryButton
+        label="Compare with prior set"
+        onPress={() => router.push(setCompareHref(set.id))}
+      />
 
       {!isMissing && videoStatus !== 'none' ? (
         <PrimaryButton label="Remove video reference" variant="danger" onPress={() => {}} />
