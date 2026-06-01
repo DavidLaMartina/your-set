@@ -124,7 +124,11 @@ function HistorySetCard({ row }: { row: HistorySetRow }) {
       </View>
       <AppText variant="caption" muted>
         {formatPerformedAt(row.performedAt)}
-        {row.workoutId ? (row.workoutName ? ` · ${row.workoutName}` : ' · Session') : ' · No session'}
+        {row.sessionInstanceId
+          ? row.sessionName
+            ? ` · ${row.sessionName}`
+            : ' · Session'
+          : ' · No session'}
         {row.rir != null ? ` · RIR ${row.rir}` : ''}
       </AppText>
     </Card>

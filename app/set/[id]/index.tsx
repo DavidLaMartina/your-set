@@ -44,8 +44,7 @@ export default function SetDetailScreen() {
       <Screen scroll={false} padded>
         <StackHeader title="Set" />
         <AppText muted>
-          Set not found in the database. Workout-tab sets now use saved IDs — reload the app if you
-          still see this after opening a set from the current workout.
+          Set not found in the database. Reload the app if you still see this after a schema update.
         </AppText>
       </Screen>
     );
@@ -66,8 +65,8 @@ export default function SetDetailScreen() {
       <Metadata
         label="Session"
         value={
-          set.workoutId
-            ? set.workoutName ?? 'In session'
+          set.sessionInstanceId
+            ? set.sessionName ?? 'In session'
             : 'None (set-only log)'
         }
       />

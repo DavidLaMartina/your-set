@@ -1,20 +1,25 @@
 import type {
   Exercise,
   ExerciseVariant,
+  Session,
+  SessionExercise,
+  SessionInstance,
+  SessionInstanceExercise,
+  SessionStatus,
   Set,
   SetType,
   SetVideo,
   VideoAvailabilityStatus,
-  Workout,
-  WorkoutExercise,
 } from '@/types/domain';
 import type {
   ExerciseRow,
   ExerciseVariantRow,
+  SessionExerciseRow,
+  SessionInstanceExerciseRow,
+  SessionInstanceRow,
+  SessionRow,
   SetRow,
   SetVideoRow,
-  WorkoutExerciseRow,
-  WorkoutRow,
 } from '@/lib/db/row-types';
 
 export function mapExerciseRow(row: ExerciseRow): Exercise {
@@ -40,10 +45,38 @@ export function mapExerciseVariantRow(row: ExerciseVariantRow): ExerciseVariant 
   };
 }
 
-export function mapWorkoutRow(row: WorkoutRow): Workout {
+export function mapSessionRow(row: SessionRow): Session {
   return {
     id: row.id,
     name: row.name,
+    status: row.status as SessionStatus,
+    rotationSortOrder: row.rotation_sort_order,
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function mapSessionExerciseRow(row: SessionExerciseRow): SessionExercise {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    exerciseVariantId: row.exercise_variant_id,
+    sortOrder: row.sort_order,
+    targetSets: row.target_sets,
+    targetRepsMin: row.target_reps_min,
+    targetRepsMax: row.target_reps_max,
+    targetWeight: row.target_weight,
+    prescriptionNotes: row.prescription_notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function mapSessionInstanceRow(row: SessionInstanceRow): SessionInstance {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
     startedAt: row.started_at,
     endedAt: row.ended_at,
     bodyweight: row.bodyweight,
@@ -53,10 +86,12 @@ export function mapWorkoutRow(row: WorkoutRow): Workout {
   };
 }
 
-export function mapWorkoutExerciseRow(row: WorkoutExerciseRow): WorkoutExercise {
+export function mapSessionInstanceExerciseRow(
+  row: SessionInstanceExerciseRow,
+): SessionInstanceExercise {
   return {
     id: row.id,
-    workoutId: row.workout_id,
+    sessionInstanceId: row.session_instance_id,
     exerciseVariantId: row.exercise_variant_id,
     sortOrder: row.sort_order,
     notes: row.notes,
@@ -70,8 +105,8 @@ export function mapSetRow(row: SetRow): Set {
     id: row.id,
     exerciseVariantId: row.exercise_variant_id,
     performedAt: row.performed_at,
-    workoutId: row.workout_id,
-    workoutExerciseId: row.workout_exercise_id,
+    sessionInstanceId: row.session_instance_id ?? row.workout_id,
+    sessionInstanceExerciseId: row.session_instance_exercise_id ?? row.workout_exercise_id,
     sortOrder: row.sort_order,
     weight: row.weight,
     reps: row.reps,
@@ -99,24 +134,5 @@ export function mapSetVideoRow(row: SetVideoRow): SetVideo {
     availabilityStatus: row.availability_status as VideoAvailabilityStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
-}
-
-export function mapSetToRow(set: Set): SetRow {
-  return {
-    id: set.id,
-    exercise_variant_id: set.exerciseVariantId,
-    performed_at: set.performedAt,
-    workout_id: set.workoutId,
-    workout_exercise_id: set.workoutExerciseId,
-    sort_order: set.sortOrder,
-    weight: set.weight,
-    reps: set.reps,
-    rir: set.rir,
-    is_failure: set.isFailure ? 1 : 0,
-    set_type: set.setType,
-    notes: set.notes,
-    created_at: set.createdAt,
-    updated_at: set.updatedAt,
   };
 }

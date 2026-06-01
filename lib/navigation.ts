@@ -4,12 +4,20 @@ export function sessionsTabHref(): Href {
   return '/(tabs)/sessions' as Href;
 }
 
+export function workoutsTabHref(): Href {
+  return '/(tabs)/workouts' as Href;
+}
+
 export function exercisesTabHref(): Href {
   return '/(tabs)/exercises' as Href;
 }
 
-export function sessionDetailHref(sessionId: string): Href {
-  return `/session/${sessionId}` as Href;
+export function sessionDetailHref(sessionInstanceId: string): Href {
+  return `/session/${sessionInstanceId}` as Href;
+}
+
+export function sessionDefinitionHref(sessionId: string): Href {
+  return `/sessions/${sessionId}` as Href;
 }
 
 export function variantHistoryHref(variantId: string): Href {

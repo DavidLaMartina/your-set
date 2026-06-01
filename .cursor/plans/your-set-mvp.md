@@ -3,7 +3,7 @@
 > Living plan for the local-first visual training logbook. Update this file as scope and phases change.
 
 **Last updated:** 2026-05-31  
-**Status:** Phase 2.5 done locally; Phase 3a (templates + rotation) planned next
+**Status:** Phase 3a implemented locally (not committed per git-and-phases rule)
 
 ## Product summary
 
@@ -14,43 +14,39 @@
 | Doc | Purpose |
 |-----|---------|
 | [docs/product-spec.md](../../docs/product-spec.md) | Positioning, flows, screens |
-| [docs/data-model.md](../../docs/data-model.md) | Entities — includes **SessionTemplate** (planned) |
+| [docs/data-model.md](../../docs/data-model.md) | Entities — sessions, instances, prescriptions |
 | [docs/implementation-plan.md](../../docs/implementation-plan.md) | Phased build order |
 
 ## Navigation (current)
 
 | Route | Screen |
 |-------|--------|
-| `/(tabs)/sessions` | Instance list + Start session (ad-hoc instance today) |
+| `/(tabs)/sessions` | Edit **definitions** — active / retired, swipe delete |
+| `/(tabs)/workouts` | **Instances** — open, start visit, recent, swipe delete |
 | `/(tabs)/exercises` | Exercises by recent `performed_at` |
-| `/session/[id]` | One instance — blocks, sets, End |
+| `/session/[id]` | One **workout (instance)** — log, end, delete |
+| `/sessions/[id]` | **Definition** — rename, retire, delete, planned lineup |
 | `/variant/[id]/history`, `/set/[id]`, … | Set-first drill-down |
 
-## Session model — current vs target
+## Session model (schema v2)
 
-### Today (schema v1)
-
-- **`workouts`** = one row per gym visit (instance).
-- **`workouts.name`** optional string — seed uses `"Push A"`; **no UI** to set or edit name.
-- **No** link between multiple `"Push A"` rows — they are not instances of one definition.
-- **No** active / retired rotation.
-
-### Target (schema v2 — SessionTemplate)
-
-| Concept | Entity | Example |
+| Concept | Table | Example |
 |---------|--------|---------|
-| **Definition** (rotation slot) | `SessionTemplate` | “Push A” — active in microcycle |
-| **Instance** (one visit) | `Workout` + `sessionTemplateId` | Push A on 2026-05-31 |
-| **Another instance** | New `Workout`, same template id | Push A next week |
-| **Retired definition** | `SessionTemplate.status = retired` | Old “Push A” after program change; instances kept |
+| **Definition** (rotation slot) | `sessions` | “Push A” — `status` active / retired |
+| **Planned lineup** | `session_exercises` | Smith incline: 3×8–12 @ 185 |
+| **Instance** (one visit) | `session_instances` | Push A on 2026-05-31, `session_id` → definition |
+| **Blocks in visit** | `session_instance_exercises` | Order + block notes for that visit |
+| **Sets** | `sets` | `session_instance_id` nullable; `performed_at` canonical |
 
-**Sessions tab (target UX):**
+**Tab split:**
 
-1. **Rotation** — active templates, start new instance per template  
-2. **Recent instances** — chronological visits (all templates + ad-hoc)  
-3. **Retired** — retired templates; drill into past instances  
+1. **Sessions tab** — CRUD definitions (active + retired), swipe-to-delete  
+2. **Workouts tab** — open visits, start from definition, ad-hoc, recent visits, swipe-to-delete  
+3. **Exercises tab** — set-first library / recency  
 
-**Naming:** edit `SessionTemplate.name`; instances inherit label (optional per-instance notes only).
+**Naming:** `sessions.name`; instances inherit label via `session_id` (ad-hoc visits have no definition).
+
+**Set-centric rules (unchanged):** every set has `performed_at`; instance link optional; `ended_at` on instance never required.
 
 ## Implementation phases
 
@@ -64,25 +60,24 @@
 
 ### Phase 2.5 — Tab IA (Sessions vs Exercises)
 
-- [x] Sessions list; Exercises by recency; `/session/[id]`; End session
-- [x] **Not in scope:** template/rotation (documented above)
+- [x] Sessions list; Exercises by recency; `/session/[id]`; End instance
 
-### Phase 3a — Session templates & rotation (next schema work)
+### Phase 3a — Session definitions & rotation
 
-- [ ] Migration `002`: `session_templates` table; `workouts.session_template_id` FK
-- [ ] Migrate seed: create template “Push A” (active) + instance linked to it
-- [ ] Repositories + services for templates (CRUD, list active/retired)
-- [ ] **Start session** → pick active template OR ad-hoc; creates **new instance**
-- [ ] **Rename template**; **retire / reactivate** template
-- [ ] Sessions tab sections: Rotation | Recent instances | Retired
-- [ ] Deprecate relying on duplicate `workouts.name` alone
+- [x] Migration `002`: `sessions`, `session_exercises`, `session_instances`, `session_instance_exercises`; sets `session_instance_id`
+- [x] Legacy `workouts` / `workout_exercises` migrated; `legacy_name:` → definitions for old seed rows
+- [x] Seed: Push A definition + planned exercises + open instance
+- [x] Repositories + services (rotation, start visit, ad-hoc, retire/reactivate)
+- [x] Sessions tab: Rotation | Recent visits | Retired
+- [x] `/sessions/[id]` rename + retire; view planned prescriptions (read-only lineup edit deferred)
 
-**Exit:** Multiple Push A weeks are distinct instances of one template; rotation shortlist works.
+**Exit:** Multiple Push A weeks are distinct instances of one definition; rotation shortlist works.
 
 ### Phase 3b — Logging (session + set-only)
 
-- [ ] Log sets inside instance; set-only without template
-- [ ] Add variant to session block; editable weight/reps, RIR, set type
+- [ ] Log sets inside instance; set-only without instance
+- [ ] Add variant to instance block; editable weight/reps, RIR, set type
+- [ ] Edit session definition lineup (add/reorder planned exercises)
 
 **Exit:** Full gym logging without workarounds.
 
@@ -101,13 +96,14 @@
 ## Open decisions
 
 - [x] Tabs: Sessions + Exercises
-- [ ] **Template default exercises** (planned blocks per Push A) — defer post-3a or include in 3a?
+- [x] Session vs instance naming (`sessions` / `session_instances`)
 - [ ] Weight unit: lb vs kg
-- [ ] Microcycle length label in UI (“This week”) — copy only, no calendar sync required for MVP
+- [ ] Microcycle label in UI (“This week”) — copy only
 
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2026-05-31 | Phase 3a: definitions, rotation, migration 002 |
 | 2026-05-31 | Phase 2.5: Sessions + Exercises tabs |
-| 2026-05-31 | Plan: SessionTemplate, instances, active/retired rotation (Phase 3a) |
+| 2026-05-31 | Plan: set-centric model, SessionTemplate → `sessions` naming |

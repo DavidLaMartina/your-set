@@ -21,9 +21,33 @@ export type ExerciseVariantRow = {
   updated_at: string;
 };
 
-export type WorkoutRow = {
+export type SessionRow = {
   id: string;
-  name: string | null;
+  name: string;
+  status: string;
+  rotation_sort_order: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SessionExerciseRow = {
+  id: string;
+  session_id: string;
+  exercise_variant_id: string;
+  sort_order: number;
+  target_sets: number | null;
+  target_reps_min: number | null;
+  target_reps_max: number | null;
+  target_weight: number | null;
+  prescription_notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SessionInstanceRow = {
+  id: string;
+  session_id: string | null;
   started_at: string;
   ended_at: string | null;
   bodyweight: number | null;
@@ -32,9 +56,9 @@ export type WorkoutRow = {
   updated_at: string;
 };
 
-export type WorkoutExerciseRow = {
+export type SessionInstanceExerciseRow = {
   id: string;
-  workout_id: string;
+  session_instance_id: string;
   exercise_variant_id: string;
   sort_order: number;
   notes: string | null;
@@ -48,6 +72,8 @@ export type SetRow = {
   performed_at: string;
   workout_id: string | null;
   workout_exercise_id: string | null;
+  session_instance_id: string | null;
+  session_instance_exercise_id: string | null;
   sort_order: number | null;
   weight: number | null;
   reps: number | null;

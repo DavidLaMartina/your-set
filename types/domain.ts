@@ -67,10 +67,39 @@ export type ExerciseVariant = {
   updatedAt: string;
 };
 
-/** Optional session container. endedAt is never required. */
-export type Workout = {
+export const SESSION_STATUSES = ['active', 'retired'] as const;
+export type SessionStatus = (typeof SESSION_STATUSES)[number];
+
+/** Session definition — rotation slot with planned exercises (session_exercises). */
+export type Session = {
   id: string;
-  name: string | null;
+  name: string;
+  status: SessionStatus;
+  rotationSortOrder: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Planned exercise on a session definition (default prescriptions). */
+export type SessionExercise = {
+  id: string;
+  sessionId: string;
+  exerciseVariantId: string;
+  sortOrder: number;
+  targetSets: number | null;
+  targetRepsMin: number | null;
+  targetRepsMax: number | null;
+  targetWeight: number | null;
+  prescriptionNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** One gym visit. endedAt is never required. */
+export type SessionInstance = {
+  id: string;
+  sessionId: string | null;
   startedAt: string;
   endedAt: string | null;
   bodyweight: number | null;
@@ -79,10 +108,10 @@ export type Workout = {
   updatedAt: string;
 };
 
-/** Optional block within a session (order, block notes). Not required to log a set. */
-export type WorkoutExercise = {
+/** Block within an instance (order, block notes). Not required to log a set. */
+export type SessionInstanceExercise = {
   id: string;
-  workoutId: string;
+  sessionInstanceId: string;
   exerciseVariantId: string;
   sortOrder: number;
   notes: string | null;
@@ -92,14 +121,14 @@ export type WorkoutExercise = {
 
 /**
  * Atomic log entry. Canonical time is performedAt — never inferred from the session.
- * workoutId / workoutExerciseId are optional (set-only logging).
+ * sessionInstanceId / sessionInstanceExerciseId are optional (set-only logging).
  */
 export type Set = {
   id: string;
   exerciseVariantId: string;
   performedAt: string;
-  workoutId: string | null;
-  workoutExerciseId: string | null;
+  sessionInstanceId: string | null;
+  sessionInstanceExerciseId: string | null;
   /** Order within a session block; null when logged outside a session. */
   sortOrder: number | null;
   weight: number | null;
@@ -132,7 +161,7 @@ export type SetVideo = {
 export type SetListFilters = {
   exerciseVariantId?: string;
   exerciseId?: string;
-  workoutId?: string;
+  sessionInstanceId?: string;
   performedAtFrom?: string;
   performedAtTo?: string;
   weightMin?: number;
@@ -148,20 +177,22 @@ export type SetWithVideo = Set & {
   video: SetVideo | null;
 };
 
-export type WorkoutExerciseBlock = WorkoutExercise & {
+export type SessionExerciseBlock = SessionInstanceExercise & {
   variant: ExerciseVariant;
   exercise: Exercise;
   sets: SetWithVideo[];
 };
 
-export type ActiveWorkoutView = Workout & {
-  blocks: WorkoutExerciseBlock[];
+export type SessionInstanceView = SessionInstance & {
+  /** Definition name when sessionId is set. */
+  sessionName: string | null;
+  blocks: SessionExerciseBlock[];
 };
 
 /** Variant-first history row; performedAt on Set is source of truth for date/time. */
 export type HistorySetRow = SetWithVideo & {
-  /** Session label when workoutId is set; null for set-only logs. */
-  workoutName: string | null;
+  /** Definition label when instance is linked; null for set-only logs. */
+  sessionName: string | null;
 };
 
 export type VariantHistoryView = {

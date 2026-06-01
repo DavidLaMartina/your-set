@@ -178,26 +178,27 @@ npm install -D @types/uuid
 
 ---
 
-## Phase 3a — Session templates & rotation
+## Phase 3a — Session definitions & rotation
 
 **Goal:** Model repeatable session definitions (Push A), unlimited instances, active vs retired rotation.
 
-See [data-model.md](./data-model.md) — `SessionTemplate` + `workouts.session_template_id`.
+See [data-model.md](./data-model.md) — `sessions` + `session_instances` + `session_exercises`.
 
 ### Tasks
 
-1. Migration `002_session_templates.sql`
-2. Template CRUD; list `active` / `retired`
-3. Start instance from template vs ad-hoc
-4. Sessions tab: Rotation | Recent instances | Retired
-5. Edit template name; retire/reactivate
+1. Migration `002-sessions.ts` (runtime + data backfill for legacy `workouts.name`)
+2. Definition CRUD; list `active` / `retired`
+3. Start visit from definition (clone planned blocks) vs ad-hoc
+4. Sessions tab: Rotation | Recent visits | Retired
+5. `/sessions/[id]` — rename, retire, view planned prescriptions
 6. Update seed
 
 ### Acceptance
 
-- [ ] Two instances of same template share `session_template_id`
-- [ ] Retired template hidden from start shortlist, instances still browsable
-- [ ] User can rename template without renaming past instances’ display logic breaking
+- [x] Two visits of same definition share `session_id`
+- [x] Retired definition hidden from rotation start; visits still in Recent
+- [x] Rename definition; visits show definition name via FK
+- [ ] Edit planned lineup in UI (deferred — read-only list in 3a)
 
 ---
 

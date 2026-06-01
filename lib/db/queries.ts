@@ -1,6 +1,6 @@
 /**
  * Canonical SQL patterns for the three access modes.
- * Repositories (Phase 2+) should compose these with bound parameters.
+ * Repositories compose these with bound parameters.
  */
 
 /** 1. All sets for a variant (session optional), with filters on performed_at, load, reps. */
@@ -28,35 +28,35 @@ WHERE ev.exercise_id = ?
 ORDER BY s.performed_at DESC;
 `;
 
-/** 2. All sets in a session (session-first). */
-export const SQL_SETS_BY_WORKOUT = `
+/** 2. All sets in a session instance (session-first). */
+export const SQL_SETS_BY_SESSION_INSTANCE = `
 SELECT s.*
 FROM sets s
-WHERE s.workout_id = ?
+WHERE COALESCE(s.session_instance_id, s.workout_id) = ?
 ORDER BY s.performed_at ASC, s.sort_order ASC;
 `;
 
-/** 2b. Exercise blocks in a session (layout / block notes). */
-export const SQL_WORKOUT_EXERCISES_BY_WORKOUT = `
-SELECT we.*
-FROM workout_exercises we
-WHERE we.workout_id = ?
-ORDER BY we.sort_order ASC;
+/** 2b. Exercise blocks in a session instance. */
+export const SQL_INSTANCE_EXERCISES_BY_INSTANCE = `
+SELECT sie.*
+FROM session_instance_exercises sie
+WHERE sie.session_instance_id = ?
+ORDER BY sie.sort_order ASC;
 `;
 
-/** 3. Sets for a variant within a specific session. */
-export const SQL_SETS_BY_WORKOUT_AND_VARIANT = `
+/** 3. Sets for a variant within a specific session instance. */
+export const SQL_SETS_BY_SESSION_INSTANCE_AND_VARIANT = `
 SELECT s.*
 FROM sets s
-WHERE s.workout_id = ?
+WHERE COALESCE(s.session_instance_id, s.workout_id) = ?
   AND s.exercise_variant_id = ?
 ORDER BY s.performed_at ASC, s.sort_order ASC;
 `;
 
-/** Open sessions (ended_at optional forever). */
-export const SQL_OPEN_WORKOUTS = `
-SELECT w.*
-FROM workouts w
-WHERE w.ended_at IS NULL
-ORDER BY w.started_at DESC;
+/** Open session instances (ended_at optional forever). */
+export const SQL_OPEN_SESSION_INSTANCES = `
+SELECT si.*
+FROM session_instances si
+WHERE si.ended_at IS NULL
+ORDER BY si.started_at DESC;
 `;

@@ -1,7 +1,9 @@
 import type { Set } from '@/types/domain';
 
-/** DB CHECK: workout_exercise_id requires workout_id; both null = set-only log. */
-export function isSetSessionLinkValid(set: Pick<Set, 'workoutId' | 'workoutExerciseId'>): boolean {
-  if (set.workoutExerciseId != null && set.workoutId == null) return false;
+/** DB CHECK: sessionInstanceExerciseId requires sessionInstanceId; both null = set-only log. */
+export function isSetSessionLinkValid(
+  set: Pick<Set, 'sessionInstanceId' | 'sessionInstanceExerciseId'>,
+): boolean {
+  if (set.sessionInstanceExerciseId != null && set.sessionInstanceId == null) return false;
   return true;
 }

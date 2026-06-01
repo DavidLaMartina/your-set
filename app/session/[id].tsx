@@ -9,23 +9,28 @@ import { Screen } from '@/components/screen';
 import { StackHeader } from '@/components/stack-header';
 import { SetRow } from '@/components/set-row';
 import { AppText } from '@/components/ui/app-text';
-import * as WorkoutRepo from '@/lib/db/repositories/workout-repository';
-import { loadSessionView } from '@/features/workouts/services/session-view-service';
+import { loadSessionInstanceView } from '@/features/sessions/services/session-instance-view-service';
+import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
 import { formatWorkoutElapsed } from '@/lib/format';
-import { exercisesTabHref, variantHistoryHref } from '@/lib/navigation';
+import {
+  deleteWorkout,
+  getWorkoutDeleteSummary,
+} from '@/features/sessions/services/workouts-tab-service';
+import { confirmDestructive } from '@/lib/confirm-delete';
+import { exercisesTabHref, sessionDefinitionHref, variantHistoryHref } from '@/lib/navigation';
 import { colors, spacing } from '@/lib/theme/tokens';
-import type { ActiveWorkoutView } from '@/types/domain';
+import type { SessionInstanceView } from '@/types/domain';
 
 export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [session, setSession] = useState<ActiveWorkoutView | null>(null);
+  const [session, setSession] = useState<SessionInstanceView | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
-      setSession(await loadSessionView(id));
+      setSession(await loadSessionInstanceView(id));
     } finally {
       setLoading(false);
     }
@@ -39,8 +44,31 @@ export default function SessionDetailScreen() {
 
   const handleEnd = async () => {
     if (!id) return;
-    await WorkoutRepo.endWorkout(id);
+    await SessionInstanceRepo.endSessionInstance(id);
     await refresh();
+  };
+
+  const handleDelete = () => {
+    if (!id) return;
+    void (async () => {
+      const summary = await getWorkoutDeleteSummary(id);
+      if (!summary) return;
+
+      const label = summary.sessionName ?? 'this workout';
+      const setNote =
+        summary.setCount > 0
+          ? `${summary.setCount} set${summary.setCount === 1 ? '' : 's'} stay in your log, unlinked. `
+          : '';
+
+      confirmDestructive({
+        title: 'Delete workout?',
+        message: `${setNote}${label} visit is removed permanently.`,
+        onConfirm: async () => {
+          await deleteWorkout(id);
+          router.back();
+        },
+      });
+    })();
   };
 
   if (!id) {
@@ -71,15 +99,23 @@ export default function SessionDetailScreen() {
   }
 
   const isOpen = session.endedAt == null;
+  const title = session.sessionName ?? 'Ad-hoc session';
 
   return (
     <Screen>
       <StackHeader
-        title={session.name ?? 'Session'}
+        title={title}
         subtitle={isOpen ? formatWorkoutElapsed(session.startedAt) : 'Ended'}
       />
 
       <View style={styles.sessionMeta}>
+        {session.sessionId ? (
+          <PrimaryButton
+            label="View session definition"
+            variant="ghost"
+            onPress={() => router.push(sessionDefinitionHref(session.sessionId!))}
+          />
+        ) : null}
         {session.bodyweight != null ? (
           <AppText variant="caption" muted>
             Bodyweight {session.bodyweight} lb
@@ -93,12 +129,13 @@ export default function SessionDetailScreen() {
       </View>
 
       {isOpen ? (
-        <PrimaryButton label="End session" variant="ghost" onPress={() => void handleEnd()} />
+        <PrimaryButton label="End workout" variant="ghost" onPress={() => void handleEnd()} />
       ) : null}
+      <PrimaryButton label="Delete workout" variant="ghost" onPress={handleDelete} />
 
       {session.blocks.length === 0 ? (
         <AppText variant="body" muted>
-          No exercises in this session yet. Phase 3 will add logging here.
+          No exercises in this visit yet. Phase 3b will add logging here.
         </AppText>
       ) : null}
 
@@ -135,7 +172,7 @@ export default function SessionDetailScreen() {
             onPress={() => router.push(exercisesTabHref())}
           />
           <AppText variant="caption" muted>
-            Phase 3: pick a variant and log sets into this session.
+            Phase 3b: pick a variant and log sets into this visit.
           </AppText>
         </>
       ) : null}

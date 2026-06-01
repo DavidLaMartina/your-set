@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { DatabaseProvider } from '@/lib/db/database-provider';
@@ -12,16 +13,18 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   return (
-    <AppThemeProvider>
-      <DatabaseProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.bg.base },
-          }}
-        />
-        <StatusBar style="light" />
-      </DatabaseProvider>
-    </AppThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppThemeProvider>
+        <DatabaseProvider>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.bg.base },
+            }}
+          />
+          <StatusBar style="light" />
+        </DatabaseProvider>
+      </AppThemeProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -9,8 +9,8 @@ import { isSetSessionLinkValid } from '@/types/set-validation';
 export type CreateSetInput = {
   exerciseVariantId: string;
   performedAt: string;
-  workoutId?: string | null;
-  workoutExerciseId?: string | null;
+  sessionInstanceId?: string | null;
+  sessionInstanceExerciseId?: string | null;
   sortOrder?: number | null;
   weight?: number | null;
   reps?: number | null;
@@ -24,6 +24,10 @@ export type UpdateSetInput = Partial<
   Omit<CreateSetInput, 'exerciseVariantId'> & { exerciseVariantId?: string }
 >;
 
+function instanceIdColumn(alias: string): string {
+  return `COALESCE(${alias}.session_instance_id, ${alias}.workout_id)`;
+}
+
 function buildFilterClause(
   filters: SetListFilters,
   alias = 's',
@@ -35,9 +39,9 @@ function buildFilterClause(
     clauses.push(`${alias}.exercise_variant_id = ?`);
     params.push(filters.exerciseVariantId);
   }
-  if (filters.workoutId) {
-    clauses.push(`${alias}.workout_id = ?`);
-    params.push(filters.workoutId);
+  if (filters.sessionInstanceId) {
+    clauses.push(`${instanceIdColumn(alias)} = ?`);
+    params.push(filters.sessionInstanceId);
   }
   if (filters.performedAtFrom) {
     clauses.push(`${alias}.performed_at >= ?`);
@@ -123,24 +127,27 @@ export async function listSetsByExercise(
   return rows.map(mapSetRow);
 }
 
-export async function listSetsByWorkout(workoutId: string): Promise<Set[]> {
-  return listSets({ workoutId });
+export async function listSetsBySessionInstance(sessionInstanceId: string): Promise<Set[]> {
+  return listSets({ sessionInstanceId });
 }
 
-export async function listSetsByWorkoutAndVariant(
-  workoutId: string,
+export async function listSetsBySessionInstanceAndVariant(
+  sessionInstanceId: string,
   exerciseVariantId: string,
 ): Promise<Set[]> {
-  return listSets({ workoutId, exerciseVariantId });
+  return listSets({ sessionInstanceId, exerciseVariantId });
 }
 
 export async function createSet(input: CreateSetInput): Promise<Set> {
+  const instanceId = input.sessionInstanceId ?? null;
+  const instanceExerciseId = input.sessionInstanceExerciseId ?? null;
+
   const draft: Set = {
     id: newId(),
     exerciseVariantId: input.exerciseVariantId,
     performedAt: input.performedAt,
-    workoutId: input.workoutId ?? null,
-    workoutExerciseId: input.workoutExerciseId ?? null,
+    sessionInstanceId: instanceId,
+    sessionInstanceExerciseId: instanceExerciseId,
     sortOrder: input.sortOrder ?? null,
     weight: input.weight ?? null,
     reps: input.reps ?? null,
@@ -153,20 +160,24 @@ export async function createSet(input: CreateSetInput): Promise<Set> {
   };
 
   if (!isSetSessionLinkValid(draft)) {
-    throw new Error('workoutExerciseId requires workoutId');
+    throw new Error('sessionInstanceExerciseId requires sessionInstanceId');
   }
 
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO sets (
-      id, exercise_variant_id, performed_at, workout_id, workout_exercise_id,
+      id, exercise_variant_id, performed_at,
+      workout_id, workout_exercise_id,
+      session_instance_id, session_instance_exercise_id,
       sort_order, weight, reps, rir, is_failure, set_type, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     draft.id,
     draft.exerciseVariantId,
     draft.performedAt,
-    draft.workoutId,
-    draft.workoutExerciseId,
+    instanceId,
+    instanceExerciseId,
+    instanceId,
+    instanceExerciseId,
     draft.sortOrder,
     draft.weight,
     draft.reps,
@@ -192,19 +203,23 @@ export async function updateSet(id: string, input: UpdateSetInput): Promise<Set 
   };
 
   if (!isSetSessionLinkValid(next)) {
-    throw new Error('workoutExerciseId requires workoutId');
+    throw new Error('sessionInstanceExerciseId requires sessionInstanceId');
   }
 
   const db = await getDb();
   await db.runAsync(
     `UPDATE sets SET
-      exercise_variant_id = ?, performed_at = ?, workout_id = ?, workout_exercise_id = ?,
+      exercise_variant_id = ?, performed_at = ?,
+      workout_id = ?, workout_exercise_id = ?,
+      session_instance_id = ?, session_instance_exercise_id = ?,
       sort_order = ?, weight = ?, reps = ?, rir = ?, is_failure = ?, set_type = ?, notes = ?, updated_at = ?
      WHERE id = ?`,
     next.exerciseVariantId,
     next.performedAt,
-    next.workoutId,
-    next.workoutExerciseId,
+    next.sessionInstanceId,
+    next.sessionInstanceExerciseId,
+    next.sessionInstanceId,
+    next.sessionInstanceExerciseId,
     next.sortOrder,
     next.weight,
     next.reps,

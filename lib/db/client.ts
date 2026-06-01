@@ -1,11 +1,38 @@
 import * as SQLite from 'expo-sqlite';
 
-import { MIGRATION_001, SCHEMA_VERSION } from '@/lib/db/migrations/001-initial';
+import { MIGRATION_001, SCHEMA_VERSION as SCHEMA_V1 } from '@/lib/db/migrations/001-initial';
+import { MIGRATION_002, SCHEMA_VERSION_002 } from '@/lib/db/migrations/002-sessions';
+import { migrateDataToSessionDefinitions } from '@/lib/db/migrate-data-v2';
 
 const DATABASE_NAME = 'your-set.db';
 
+export const SCHEMA_VERSION = SCHEMA_VERSION_002;
+
 let database: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+
+async function getSchemaVersion(db: SQLite.SQLiteDatabase): Promise<number> {
+  const row = await db.getFirstAsync<{ version: number }>(
+    'SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1',
+  );
+  return row?.version ?? 0;
+}
+
+async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
+  let version = await getSchemaVersion(db);
+
+  if (version < SCHEMA_V1) {
+    await db.execAsync(MIGRATION_001);
+    await db.runAsync('INSERT INTO schema_migrations (version) VALUES (?)', SCHEMA_V1);
+    version = SCHEMA_V1;
+  }
+
+  if (version < SCHEMA_VERSION_002) {
+    await db.execAsync(MIGRATION_002);
+    await migrateDataToSessionDefinitions(db);
+    await db.runAsync('INSERT INTO schema_migrations (version) VALUES (?)', SCHEMA_VERSION_002);
+  }
+}
 
 export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (database) return database;
@@ -21,14 +48,7 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       );
     `);
 
-    const row = await db.getFirstAsync<{ version: number }>(
-      'SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1',
-    );
-
-    if (!row) {
-      await db.execAsync(MIGRATION_001);
-      await db.runAsync('INSERT INTO schema_migrations (version) VALUES (?)', SCHEMA_VERSION);
-    }
+    await applyMigrations(db);
 
     database = db;
     return db;

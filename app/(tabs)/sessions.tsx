@@ -1,28 +1,34 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
+import { SwipeToArchiveRow } from '@/components/swipe-to-archive-row';
+import { SwipeToDeleteRow } from '@/components/swipe-to-delete-row';
 import { AppText } from '@/components/ui/app-text';
 import {
-  listSessions,
-  startNewSession,
-  type SessionListItem,
-} from '@/features/workouts/services/sessions-list-service';
-import { formatDate } from '@/lib/format';
-import { sessionDetailHref } from '@/lib/navigation';
-import { colors } from '@/lib/theme/tokens';
+  createSessionDefinition,
+  deleteSessionDefinition,
+  getSessionDefinitionDeleteSummary,
+  loadSessionDefinitionsTab,
+  reactivateSessionDefinition,
+  retireSessionDefinition,
+  type SessionDefinitionsTabData,
+} from '@/features/sessions/services/session-definitions-service';
+import { confirmArchiveSession, confirmDeleteArchivedSession } from '@/lib/confirm-delete';
+import { sessionDefinitionHref } from '@/lib/navigation';
+import type { Session } from '@/types/domain';
 
 export default function SessionsScreen() {
-  const [sessions, setSessions] = useState<SessionListItem[]>([]);
+  const [data, setData] = useState<SessionDefinitionsTabData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      setSessions(await listSessions());
+      setData(await loadSessionDefinitionsTab());
     } finally {
       setLoading(false);
     }
@@ -34,69 +40,148 @@ export default function SessionsScreen() {
     }, [refresh]),
   );
 
-  const handleStartSession = async () => {
-    const workout = await startNewSession();
-    router.push(sessionDetailHref(workout.id));
+  const handleAddDefinition = () => {
+    Alert.prompt(
+      'New session',
+      'Name this rotation slot (e.g. Push A)',
+      async (name) => {
+        if (!name?.trim()) return;
+        const session = await createSessionDefinition(name.trim());
+        router.push(sessionDefinitionHref(session.id));
+        await refresh();
+      },
+    );
   };
+
+  const handleArchiveDefinition = (session: Session) => {
+    confirmArchiveSession(session.name, async () => {
+      await retireSessionDefinition(session.id);
+      await refresh();
+    });
+  };
+
+  const handleDeleteArchivedDefinition = (sessionId: string) => {
+    void (async () => {
+      const summary = await getSessionDefinitionDeleteSummary(sessionId);
+      if (!summary) return;
+
+      confirmDeleteArchivedSession(summary.name, summary.instanceCount, async () => {
+        await deleteSessionDefinition(sessionId);
+        await refresh();
+      });
+    })();
+  };
+
+  const active = data?.active ?? [];
+  const retired = data?.retired ?? [];
 
   return (
     <Screen>
       <View style={styles.header}>
         <AppText variant="titleLarge">Sessions</AppText>
         <AppText variant="caption" muted>
-          Training visits — open and past
+          Edit rotation definitions — start workouts from the Workouts tab
         </AppText>
       </View>
 
-      <PrimaryButton label="Start session" onPress={() => void handleStartSession()} />
+      <PrimaryButton label="+ Session" variant="ghost" onPress={handleAddDefinition} />
 
-      {loading && sessions.length === 0 ? (
-        <AppText variant="body" muted>
-          Loading…
-        </AppText>
+      <Section title="Active">
+        {loading && active.length === 0 ? (
+          <AppText variant="body" muted>
+            Loading…
+          </AppText>
+        ) : null}
+        {!loading && active.length === 0 ? (
+          <AppText variant="body" muted>
+            No active sessions. Add one for your rotation (e.g. Push A).
+          </AppText>
+        ) : null}
+        {active.map((session) => (
+          <ActiveDefinitionRow
+            key={session.id}
+            session={session}
+            onPress={() => router.push(sessionDefinitionHref(session.id))}
+            onArchive={() => handleArchiveDefinition(session)}
+          />
+        ))}
+      </Section>
+
+      {retired.length > 0 ? (
+        <Section
+          title="Archived"
+          hint="Swipe left on an archived session to delete it. Past workouts become ad-hoc; your logged sets are kept.">
+          {retired.map((session) => (
+            <SwipeToDeleteRow
+              key={session.id}
+              onDelete={() => handleDeleteArchivedDefinition(session.id)}>
+              <Card
+                title={session.name}
+                subtitle="Archived"
+                onPress={() => router.push(sessionDefinitionHref(session.id))}>
+                <PrimaryButton
+                  label="Restore to rotation"
+                  variant="ghost"
+                  onPress={() =>
+                    void reactivateSessionDefinition(session.id).then(() => refresh())
+                  }
+                />
+              </Card>
+            </SwipeToDeleteRow>
+          ))}
+        </Section>
       ) : null}
-
-      {!loading && sessions.length === 0 ? (
-        <AppText variant="body" muted>
-          No sessions yet. Start one or log sets without a session from Exercises.
-        </AppText>
-      ) : null}
-
-      {sessions.map(({ workout, setCount, variantCount }) => {
-        const isOpen = workout.endedAt == null;
-        return (
-          <Card
-            key={workout.id}
-            title={workout.name ?? 'Session'}
-            subtitle={formatDate(workout.startedAt)}
-            onPress={() => router.push(sessionDetailHref(workout.id))}
-            headerRight={
-              isOpen ? (
-                <AppText variant="caption" color={colors.accent.primary}>
-                  Open
-                </AppText>
-              ) : (
-                <AppText variant="caption" muted>
-                  Ended
-                </AppText>
-              )
-            }>
-            <AppText variant="caption" muted>
-              {setCount} set{setCount === 1 ? '' : 's'}
-              {variantCount > 0
-                ? ` · ${variantCount} variant${variantCount === 1 ? '' : 's'}`
-                : ''}
-              {workout.bodyweight != null ? ` · ${workout.bodyweight} lb` : ''}
-            </AppText>
-          </Card>
-        );
-      })}
     </Screen>
+  );
+}
+
+function Section({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.section}>
+      <AppText variant="titleMedium">{title}</AppText>
+      {hint ? (
+        <AppText variant="caption" muted>
+          {hint}
+        </AppText>
+      ) : null}
+      {children}
+    </View>
+  );
+}
+
+function ActiveDefinitionRow({
+  session,
+  onPress,
+  onArchive,
+}: {
+  session: Session;
+  onPress: () => void;
+  onArchive: () => void;
+}) {
+  return (
+    <SwipeToArchiveRow onArchive={onArchive}>
+      <Card title={session.name} subtitle="Active in rotation" onPress={onPress}>
+        <AppText variant="caption" muted>
+          Tap to edit · swipe left to archive
+        </AppText>
+      </Card>
+    </SwipeToArchiveRow>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
     gap: 4,
+  },
+  section: {
+    gap: 8,
   },
 });

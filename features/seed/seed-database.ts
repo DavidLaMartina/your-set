@@ -1,13 +1,15 @@
 import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
 import * as VariantRepo from '@/lib/db/repositories/exercise-variant-repository';
 import * as SetRepo from '@/lib/db/repositories/set-repository';
-import * as WorkoutRepo from '@/lib/db/repositories/workout-repository';
-import * as WorkoutExerciseRepo from '@/lib/db/repositories/workout-exercise-repository';
+import * as SessionRepo from '@/lib/db/repositories/session-repository';
+import * as SessionExerciseRepo from '@/lib/db/repositories/session-exercise-repository';
+import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
+import * as SessionInstanceExerciseRepo from '@/lib/db/repositories/session-instance-exercise-repository';
 import { getDb } from '@/lib/db/client';
 import { isoNow } from '@/lib/db/timestamps';
 
 /**
- * Seeds sample library + sets (including one set-only row with no workout_id).
+ * Seeds sample library + session definition "Push A" + open instance + sets.
  * Runs only when the exercises table is empty.
  */
 export async function seedDatabaseIfEmpty(): Promise<boolean> {
@@ -45,21 +47,46 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     equipment: 'cable',
   });
 
+  const pushA = await SessionRepo.createSession({
+    name: 'Push A',
+    status: 'active',
+    rotationSortOrder: 0,
+  });
+
+  await SessionExerciseRepo.createSessionExercise({
+    sessionId: pushA.id,
+    exerciseVariantId: smith.id,
+    sortOrder: 0,
+    targetSets: 3,
+    targetRepsMin: 8,
+    targetRepsMax: 12,
+    targetWeight: 185,
+  });
+  await SessionExerciseRepo.createSessionExercise({
+    sessionId: pushA.id,
+    exerciseVariantId: cableRow.id,
+    sortOrder: 1,
+    targetSets: 2,
+    targetRepsMin: 8,
+    targetRepsMax: 10,
+    prescriptionNotes: 'Focus on pause at stretch',
+  });
+
   const now = new Date();
   const startedAt = new Date(now.getTime() - 47 * 60 * 1000).toISOString();
-  const workout = await WorkoutRepo.createWorkout({
-    name: 'Push A',
+  const instance = await SessionInstanceRepo.createSessionInstance({
+    sessionId: pushA.id,
     startedAt,
     bodyweight: 185,
   });
 
-  const blockSmith = await WorkoutExerciseRepo.createWorkoutExercise({
-    workoutId: workout.id,
+  const blockSmith = await SessionInstanceExerciseRepo.createSessionInstanceExercise({
+    sessionInstanceId: instance.id,
     exerciseVariantId: smith.id,
     sortOrder: 0,
   });
-  const blockRow = await WorkoutExerciseRepo.createWorkoutExercise({
-    workoutId: workout.id,
+  const blockRow = await SessionInstanceExerciseRepo.createSessionInstanceExercise({
+    sessionInstanceId: instance.id,
     exerciseVariantId: cableRow.id,
     sortOrder: 1,
     notes: 'Focus on pause at stretch',
@@ -72,8 +99,8 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   await SetRepo.createSet({
     exerciseVariantId: smith.id,
     performedAt: t0,
-    workoutId: workout.id,
-    workoutExerciseId: blockSmith.id,
+    sessionInstanceId: instance.id,
+    sessionInstanceExerciseId: blockSmith.id,
     sortOrder: 1,
     weight: 185,
     reps: 8,
@@ -83,8 +110,8 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   await SetRepo.createSet({
     exerciseVariantId: smith.id,
     performedAt: t1,
-    workoutId: workout.id,
-    workoutExerciseId: blockSmith.id,
+    sessionInstanceId: instance.id,
+    sessionInstanceExerciseId: blockSmith.id,
     sortOrder: 2,
     weight: 175,
     reps: 10,
@@ -94,8 +121,8 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   await SetRepo.createSet({
     exerciseVariantId: smith.id,
     performedAt: t2,
-    workoutId: workout.id,
-    workoutExerciseId: blockSmith.id,
+    sessionInstanceId: instance.id,
+    sessionInstanceExerciseId: blockSmith.id,
     sortOrder: 3,
     weight: 165,
     reps: 12,
@@ -105,20 +132,19 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   await SetRepo.createSet({
     exerciseVariantId: cableRow.id,
     performedAt: new Date(now.getTime() - 20 * 60 * 1000).toISOString(),
-    workoutId: workout.id,
-    workoutExerciseId: blockRow.id,
+    sessionInstanceId: instance.id,
+    sessionInstanceExerciseId: blockRow.id,
     sortOrder: 1,
     weight: 140,
     reps: 10,
     setType: 'top_set',
   });
 
-  // Set-only log — no session
   await SetRepo.createSet({
     exerciseVariantId: smith.id,
     performedAt: '2026-04-10T17:00:00.000Z',
-    workoutId: null,
-    workoutExerciseId: null,
+    sessionInstanceId: null,
+    sessionInstanceExerciseId: null,
     weight: 155,
     reps: 10,
     notes: 'Logged without a session',
@@ -127,8 +153,8 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   await SetRepo.createSet({
     exerciseVariantId: smith.id,
     performedAt: '2026-03-12T18:30:00.000Z',
-    workoutId: workout.id,
-    workoutExerciseId: blockSmith.id,
+    sessionInstanceId: instance.id,
+    sessionInstanceExerciseId: blockSmith.id,
     sortOrder: 1,
     weight: 180,
     reps: 8,
@@ -137,7 +163,6 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     notes: 'Prior top — demo compare target',
   });
 
-  // Touch seed timestamp
   void isoNow();
 
   return true;

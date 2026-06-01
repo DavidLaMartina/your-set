@@ -1,6 +1,6 @@
 import { MOCK_IDS } from '@/features/mock-data/ids';
 import type {
-  ActiveWorkoutView,
+  SessionInstanceView,
   Exercise,
   ExerciseVariant,
   HistorySetRow,
@@ -8,7 +8,7 @@ import type {
   SetVideo,
   SetWithVideo,
   VariantHistoryView,
-  WorkoutExerciseBlock,
+  SessionExerciseBlock,
 } from '@/types/domain';
 
 const now = new Date();
@@ -87,8 +87,8 @@ type MakeSetInput = Pick<Set, 'id' | 'exerciseVariantId' | 'performedAt'> &
 function makeSet(partial: MakeSetInput): Set {
   const audit = partial.performedAt;
   return {
-    workoutId: null,
-    workoutExerciseId: null,
+    sessionInstanceId: null,
+    sessionInstanceExerciseId: null,
     sortOrder: null,
     weight: null,
     reps: null,
@@ -104,11 +104,11 @@ function makeSet(partial: MakeSetInput): Set {
 
 function inSession(
   set: MakeSetInput,
-  workoutId: string,
-  workoutExerciseId: string,
+  sessionInstanceId: string,
+  sessionInstanceExerciseId: string,
   sortOrder: number,
 ): MakeSetInput {
-  return { ...set, workoutId, workoutExerciseId, sortOrder };
+  return { ...set, sessionInstanceId, sessionInstanceExerciseId, sortOrder };
 }
 
 function makeVideo(
@@ -302,13 +302,13 @@ function buildBlock(
   sortOrder: number,
   sets: SetWithVideo[],
   notes: string | null = null,
-): WorkoutExerciseBlock {
+): SessionExerciseBlock {
   const variant = variants.find((v) => v.id === variantId)!;
   const exercise = exercises.find((e) => e.id === variant.exerciseId)!;
   const ts = '2026-05-31T12:00:00.000Z';
   return {
     id: blockId,
-    workoutId: MOCK_IDS.workoutActive,
+    sessionInstanceId: MOCK_IDS.workoutActive,
     exerciseVariantId: variantId,
     sortOrder,
     notes,
@@ -320,9 +320,10 @@ function buildBlock(
   };
 }
 
-export const mockActiveWorkout: ActiveWorkoutView = {
+export const mockActiveSessionInstance: SessionInstanceView = {
   id: MOCK_IDS.workoutActive,
-  name: 'Push A',
+  sessionId: 'session-push-a',
+  sessionName: 'Push A',
   startedAt,
   endedAt: null,
   bodyweight: 185,
@@ -341,8 +342,8 @@ export const mockActiveWorkout: ActiveWorkoutView = {
   ],
 };
 
-function historyRow(set: Set, video: SetVideo | null, workoutName: string | null): HistorySetRow {
-  return { ...set, video, workoutName };
+function historyRow(set: Set, video: SetVideo | null, sessionName: string | null): HistorySetRow {
+  return { ...set, video, sessionName };
 }
 
 export function getMockSetById(setId: string): SetWithVideo | undefined {
@@ -407,7 +408,15 @@ export function getMockVariantHistory(variantId: string): VariantHistoryView | n
   const recentSets: HistorySetRow[] = [...allForVariant]
     .sort((a, b) => new Date(b.performedAt).getTime() - new Date(a.performedAt).getTime())
     .map((s) =>
-      historyRow(s, s.video, s.workoutId ? (s.workoutId === MOCK_IDS.workoutActive ? 'Push A' : 'Prior session') : null),
+      historyRow(
+        s,
+        s.video,
+        s.sessionInstanceId
+          ? s.sessionInstanceId === MOCK_IDS.workoutActive
+            ? 'Push A'
+            : 'Prior session'
+          : null,
+      ),
     );
 
   const bestSets = [...recentSets].sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0)).slice(0, 3);
