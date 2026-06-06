@@ -7,7 +7,7 @@ import type { SessionExercise } from '@/types/domain';
 
 export type CreateSessionExerciseInput = {
   sessionId: string;
-  exerciseVariantId: string;
+  exerciseId: string;
   sortOrder: number;
   targetSets?: number | null;
   targetRepsMin?: number | null;
@@ -33,13 +33,13 @@ export async function createSessionExercise(
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO session_exercises (
-      id, session_id, exercise_variant_id, sort_order,
+      id, session_id, exercise_id, sort_order,
       target_sets, target_reps_min, target_reps_max, target_weight, prescription_notes,
       created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     input.sessionId,
-    input.exerciseVariantId,
+    input.exerciseId,
     input.sortOrder,
     input.targetSets ?? null,
     input.targetRepsMin ?? null,
@@ -54,4 +54,53 @@ export async function createSessionExercise(
     id,
   );
   return mapSessionExerciseRow(row!);
+}
+
+export async function getSessionExerciseById(id: string): Promise<SessionExercise | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<SessionExerciseRow>(
+    'SELECT * FROM session_exercises WHERE id = ?',
+    id,
+  );
+  return row ? mapSessionExerciseRow(row) : null;
+}
+
+export async function deleteSessionExercise(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM session_exercises WHERE id = ?', id);
+}
+
+export async function updateSessionExerciseSortOrder(
+  id: string,
+  sortOrder: number,
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE session_exercises SET sort_order = ?, updated_at = ? WHERE id = ?',
+    sortOrder,
+    isoNow(),
+    id,
+  );
+}
+
+export async function getNextSessionExerciseSortOrder(sessionId: string): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ max_order: number | null }>(
+    'SELECT MAX(sort_order) as max_order FROM session_exercises WHERE session_id = ?',
+    sessionId,
+  );
+  return (row?.max_order ?? -1) + 1;
+}
+
+export async function sessionHasExercise(
+  sessionId: string,
+  exerciseId: string,
+): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM session_exercises WHERE session_id = ? AND exercise_id = ?',
+    sessionId,
+    exerciseId,
+  );
+  return (row?.count ?? 0) > 0;
 }

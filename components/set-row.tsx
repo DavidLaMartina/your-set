@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import { setDetailHref } from '@/lib/navigation';
@@ -54,9 +53,6 @@ export function SetRow({ set, index, onPress }: SetRowProps) {
       </View>
       <View style={styles.meta}>
         {set.setType !== 'straight' ? <SetTypeBadge setType={set.setType} /> : null}
-        {set.isFailure ? (
-          <Ionicons name="flame" size={14} color={colors.accent.danger} accessibilityLabel="Failure set" />
-        ) : null}
         {set.rir != null ? (
           <AppText variant="caption" muted>
             RIR {set.rir}

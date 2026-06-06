@@ -10,8 +10,8 @@ import { SetTypeBadge } from '@/components/set-type-badge';
 import { VideoPlaceholder } from '@/components/video-placeholder';
 import { AppText } from '@/components/ui/app-text';
 import { formatPerformedAt, formatSetLabel } from '@/lib/format';
-import { loadSetWithContext } from '@/features/history/services/variant-history-service';
-import { setCompareHref } from '@/lib/navigation';
+import { loadSetWithContext } from '@/features/history/services/exercise-history-service';
+import { logSetHref, setCompareHref } from '@/lib/navigation';
 import { spacing } from '@/lib/theme/tokens';
 import type { HistorySetRow } from '@/types/domain';
 import { SET_TYPE_LABELS } from '@/types/domain';
@@ -72,7 +72,6 @@ export default function SetDetailScreen() {
       />
       <Metadata label="Set type" value={SET_TYPE_LABELS[set.setType]} />
       {set.rir != null ? <Metadata label="RIR" value={String(set.rir)} /> : null}
-      {set.isFailure ? <Metadata label="Failure" value="Yes" /> : null}
       {set.notes ? <Metadata label="Notes" value={set.notes} /> : null}
 
       <AppText variant="titleMedium">Video</AppText>
@@ -84,6 +83,21 @@ export default function SetDetailScreen() {
           onPress={() => {}}
         />
       )}
+
+      <PrimaryButton
+        label="Edit set"
+        variant="ghost"
+        onPress={() =>
+          router.push(
+            logSetHref({
+              exerciseId: set.exerciseId,
+              sessionInstanceId: set.sessionInstanceId ?? undefined,
+              sessionInstanceExerciseId: set.sessionInstanceExerciseId ?? undefined,
+              setId: set.id,
+            }),
+          )
+        }
+      />
 
       <PrimaryButton
         label="Compare with prior set"

@@ -38,10 +38,10 @@ Someone who already knows how to train. They want fast logging, video attachment
 | Auth | None |
 | Video | References to photo library / camera roll; metadata in DB |
 | Video missing | Graceful state if user deletes asset or permissions change |
-| Exercises | Create/manage exercises and variants |
+| Exercises | Create/manage exercises (implement, muscle, manufacturer) |
 | Workouts | Start, log sets, end session |
-| Sets | Weight, reps, RIR, set type, failure, notes |
-| History | Per-variant history, comparable sets, filters |
+| Sets | Weight, reps, RIR, set type, notes |
+| History | Per-exercise history, comparable sets, filters |
 | Compare | Side-by-side video of current vs prior set |
 | Platform | iOS-first; Android secondary; web not a priority |
 
@@ -56,12 +56,11 @@ Someone who already knows how to train. They want fast logging, video attachment
 - Nutrition, body metrics trends (except optional session bodyweight)
 - Export (nice-to-have later, not required v1)
 
-## Core domain concept: ExerciseVariant
+## Core domain concept: Exercise
 
-**Exercise** = broad movement category (e.g. Incline Press, Row).  
-**ExerciseVariant** = specific setup (equipment, angle, machine brand, grip).
+**Exercise** = the specific movement you log against (e.g. "Smith high incline press", "Neutral-grip cable row"). It carries an **implement** (barbell, dumbbell, machine, cable, …), a **primary muscle**, optional **secondary muscles**, and an optional **manufacturer** (machine variations) — all foreign keys to seeded reference tables.
 
-Serious lifters compare **like-with-like** performances. Variants are first-class, not tags on a generic exercise.
+Serious lifters compare **like-with-like**, so setup specifics live on the exercise itself rather than as a separate "variant" layer (the v4 exercise/variant split was collapsed in schema v5). `origin` / `catalogId` are the seam for a future shared/cloud exercise library; user-created exercises live in the same table tagged `custom`.
 
 ## Data access (two lenses, one storage)
 
@@ -69,25 +68,27 @@ The **set** is the atomic record; every set has **`performedAt`** (when it was d
 
 | Lens | User question | Example |
 |------|---------------|---------|
-| **Set-first** | All sets for this variant (or exercise), filter by date/load/reps | Variant history, compare, progression |
+| **Set-first** | All sets for this exercise, filter by date/load/reps | Exercise history, compare, progression |
 | **Session-first** | Everything I did in this gym visit | Active workout, session review |
-| **Both** | Sets for this variant *in* this session | Block view inside a session |
+| **Both** | Sets for this exercise *in* this session | Block view inside a session |
 
 Users may only ever log sets (no session). Users may use sessions and optionally tap **End** (`endedAt` — never required).
 
 ## User flows (MVP)
 
-1. **Manage library** — Create exercise → add variants (equipment, muscle group, setup notes).
-2. **Log a set** — Always: variant + `performedAt` + weight/reps/etc. Optionally attach to a session.
-3. **Start workout (optional)** — Name optional, bodyweight optional; groups sets under `workoutId`.
-4. **Build session (optional)** — Add exercise variants to workout; order blocks.
-5. **Log sets in session** — Same as (2), with `workoutId` / block link.
-6. **End session (optional)** — Sets `endedAt`; does not affect existing sets.
-7. **Attach video** — Pick from library (or record if supported); store reference only.
-8. **Review variant** — Set-first history by `performedAt`; filter by load/reps/date/type; includes sets with no session.
-9. **Set detail** — `performedAt`, optional session, video status, play or missing state, relink/remove.
-10. **Compare** — Side-by-side playback vs another set (by `performedAt`, not session).
-11. **Missing video** — Clear copy + relink or remove reference.
+1. **Manage library** — Create an exercise (name + implement + primary muscle, optional secondary muscles / manufacturer).
+2. **Define session (rotation slot)** — Add planned exercises to a **session definition** (`session_exercises`) so each **workout** started from that session gets the same lineup (Phase 3b UI).
+3. **Log a set** — Always: exercise + `performedAt` + weight/reps/etc. **Workout optional** (`session_instance_id` null = set-only).
+4. **Start workout (optional)** — From Workouts tab: from session definition (clones lineup) or ad-hoc; bodyweight optional.
+5. **Log sets in workout** — Link to instance + block; same fields as (3) (Phase 3b).
+6. **Log set without workout** — From **exercise detail** (`+ Log set`) or **Sets tab** (global recent list) (Phase 3b).
+7. **End workout (optional)** — Sets `endedAt` on instance; does not affect existing sets.
+8. **Attach video** — Pick from library (or record if supported); store reference only.
+9. **Review exercise** — Set-first history by `performedAt`; includes sets with no workout.
+10. **Sets tab** — Chronological log of all recent sets (not a video grid in MVP).
+11. **Set detail** — `performedAt`, optional workout/session label, video status, play or missing state, relink/remove.
+12. **Compare** — Side-by-side playback vs another set (by `performedAt`, not session).
+13. **Missing video** — Clear copy + relink or remove reference.
 
 ## Priority screens
 
@@ -111,13 +112,14 @@ Users may only ever log sets (no session). Users may use sessions and optionally
 
 ### 3. Exercises tab
 
-- Exercises sorted by most recently performed (`performedAt` across variants)
-- Variants under each exercise, each with last performed time
-- Tap variant → variant history; tap manage → exercise detail / CRUD
+- Exercises sorted by most recently performed (`performedAt`)
+- Each row shows implement · primary muscle + last performed time
+- Tap exercise → exercise detail (history + manage)
 
-### 4. Exercise Variant History
+### 4. Exercise Detail / History
 
-- Variant title + exercise context
+- Exercise name + implement · muscle context (secondary muscles, manufacturer)
+- Prominent **+ Log set**
 - Recent sets timeline
 - Best sets (e.g. top weight for rep range)
 - Comparable sets section
@@ -137,10 +139,10 @@ Users may only ever log sets (no session). Users may use sessions and optionally
 - Notes
 - Change comparison target
 
-### 7. Exercise / Variant Manager (stack)
+### 7. Exercise Manager (stack)
 
-- List exercises → drill into variants
-- CRUD with equipment, muscle group, setup notes
+- Create/edit exercise: name + implement + primary muscle + secondary muscles + manufacturer
+- Delete exercise (removes its sets)
 
 ### 8. Missing Video state
 
@@ -171,8 +173,8 @@ MVP must not block these paths (stable IDs, clear domain boundaries) but must no
 
 ## Success criteria (MVP)
 
-- User can complete a full workout session offline with multiple variants and sets
+- User can complete a full workout session offline with multiple exercises and sets
 - User can attach a video to a set and play it back from library reference
 - Deleting the video from Photos shows missing state, not a crash
-- User can open variant history and compare two sets with video side-by-side
+- User can open exercise history and compare two sets with video side-by-side
 - App feels fast and serious on a physical iPhone in a gym environment

@@ -1,16 +1,15 @@
 import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
-import * as VariantRepo from '@/lib/db/repositories/exercise-variant-repository';
 import * as SetRepo from '@/lib/db/repositories/set-repository';
 import * as SessionRepo from '@/lib/db/repositories/session-repository';
 import * as SessionExerciseRepo from '@/lib/db/repositories/session-exercise-repository';
 import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
 import * as SessionInstanceExerciseRepo from '@/lib/db/repositories/session-instance-exercise-repository';
 import { getDb } from '@/lib/db/client';
-import { isoNow } from '@/lib/db/timestamps';
 
 /**
- * Seeds sample library + session definition "Push A" + open instance + sets.
- * Runs only when the exercises table is empty.
+ * Seeds a few demo exercises + "Push A" definition + open instance + sets.
+ * Runs only when the exercises table is empty. Reference tables (implements,
+ * muscles, manufacturers) are seeded by migration 005.
  */
 export async function seedDatabaseIfEmpty(): Promise<boolean> {
   const db = await getDb();
@@ -19,32 +18,31 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   );
   if ((row?.count ?? 0) > 0) return false;
 
-  const incline = await ExerciseRepo.createExercise({
-    name: 'Incline Press',
-    defaultMuscleGroup: 'chest',
+  const smithIncline = await ExerciseRepo.createExercise({
+    name: 'Smith high incline press',
+    implementId: 'imp-smith',
+    primaryMuscleId: 'mus-upper-chest',
+    notes: 'Bench ~75°, feet flat, slight arch',
+    secondaryMuscleIds: ['mus-front-delts', 'mus-triceps'],
   });
-  const rowExercise = await ExerciseRepo.createExercise({
-    name: 'Row',
-    defaultMuscleGroup: 'back',
+  await ExerciseRepo.createExercise({
+    name: '30° dumbbell incline press',
+    implementId: 'imp-dumbbell',
+    primaryMuscleId: 'mus-upper-chest',
+    secondaryMuscleIds: ['mus-front-delts', 'mus-triceps'],
   });
-
-  const smith = await VariantRepo.createVariant({
-    exerciseId: incline.id,
-    name: 'Smith high incline',
-    muscleGroup: 'chest',
-    equipment: 'smith',
-    setupNotes: 'Bench ~75°, feet flat, slight arch',
-  });
-  await VariantRepo.createVariant({
-    exerciseId: incline.id,
-    name: '30° dumbbell incline',
-    equipment: 'dumbbell',
-  });
-  const cableRow = await VariantRepo.createVariant({
-    exerciseId: rowExercise.id,
+  const cableRow = await ExerciseRepo.createExercise({
     name: 'Neutral-grip lat-biased cable row',
-    muscleGroup: 'back',
-    equipment: 'cable',
+    implementId: 'imp-cable',
+    primaryMuscleId: 'mus-lats',
+    secondaryMuscleIds: ['mus-upper-back', 'mus-biceps'],
+  });
+  await ExerciseRepo.createExercise({
+    name: 'Leg press',
+    implementId: 'imp-machine',
+    primaryMuscleId: 'mus-quads',
+    manufacturerId: 'mfr-hammer-strength',
+    secondaryMuscleIds: ['mus-glutes'],
   });
 
   const pushA = await SessionRepo.createSession({
@@ -55,7 +53,7 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
 
   await SessionExerciseRepo.createSessionExercise({
     sessionId: pushA.id,
-    exerciseVariantId: smith.id,
+    exerciseId: smithIncline.id,
     sortOrder: 0,
     targetSets: 3,
     targetRepsMin: 8,
@@ -64,7 +62,7 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   });
   await SessionExerciseRepo.createSessionExercise({
     sessionId: pushA.id,
-    exerciseVariantId: cableRow.id,
+    exerciseId: cableRow.id,
     sortOrder: 1,
     targetSets: 2,
     targetRepsMin: 8,
@@ -82,12 +80,12 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
 
   const blockSmith = await SessionInstanceExerciseRepo.createSessionInstanceExercise({
     sessionInstanceId: instance.id,
-    exerciseVariantId: smith.id,
+    exerciseId: smithIncline.id,
     sortOrder: 0,
   });
   const blockRow = await SessionInstanceExerciseRepo.createSessionInstanceExercise({
     sessionInstanceId: instance.id,
-    exerciseVariantId: cableRow.id,
+    exerciseId: cableRow.id,
     sortOrder: 1,
     notes: 'Focus on pause at stretch',
   });
@@ -97,7 +95,7 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   const t2 = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
 
   await SetRepo.createSet({
-    exerciseVariantId: smith.id,
+    exerciseId: smithIncline.id,
     performedAt: t0,
     sessionInstanceId: instance.id,
     sessionInstanceExerciseId: blockSmith.id,
@@ -108,7 +106,7 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     setType: 'top_set',
   });
   await SetRepo.createSet({
-    exerciseVariantId: smith.id,
+    exerciseId: smithIncline.id,
     performedAt: t1,
     sessionInstanceId: instance.id,
     sessionInstanceExerciseId: blockSmith.id,
@@ -119,7 +117,7 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     setType: 'backoff',
   });
   await SetRepo.createSet({
-    exerciseVariantId: smith.id,
+    exerciseId: smithIncline.id,
     performedAt: t2,
     sessionInstanceId: instance.id,
     sessionInstanceExerciseId: blockSmith.id,
@@ -130,7 +128,7 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   });
 
   await SetRepo.createSet({
-    exerciseVariantId: cableRow.id,
+    exerciseId: cableRow.id,
     performedAt: new Date(now.getTime() - 20 * 60 * 1000).toISOString(),
     sessionInstanceId: instance.id,
     sessionInstanceExerciseId: blockRow.id,
@@ -141,7 +139,7 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   });
 
   await SetRepo.createSet({
-    exerciseVariantId: smith.id,
+    exerciseId: smithIncline.id,
     performedAt: '2026-04-10T17:00:00.000Z',
     sessionInstanceId: null,
     sessionInstanceExerciseId: null,
@@ -151,7 +149,7 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   });
 
   await SetRepo.createSet({
-    exerciseVariantId: smith.id,
+    exerciseId: smithIncline.id,
     performedAt: '2026-03-12T18:30:00.000Z',
     sessionInstanceId: instance.id,
     sessionInstanceExerciseId: blockSmith.id,
@@ -162,8 +160,6 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     setType: 'top_set',
     notes: 'Prior top — demo compare target',
   });
-
-  void isoNow();
 
   return true;
 }

@@ -2,11 +2,14 @@ import * as SQLite from 'expo-sqlite';
 
 import { MIGRATION_001, SCHEMA_VERSION as SCHEMA_V1 } from '@/lib/db/migrations/001-initial';
 import { MIGRATION_002, SCHEMA_VERSION_002 } from '@/lib/db/migrations/002-sessions';
+import { MIGRATION_003, SCHEMA_VERSION_003 } from '@/lib/db/migrations/003-sets-drop-legacy-workout-fks';
+import { MIGRATION_004, SCHEMA_VERSION_004 } from '@/lib/db/migrations/004-drop-set-failure-flag';
+import { MIGRATION_005, SCHEMA_VERSION_005 } from '@/lib/db/migrations/005-exercises-flatten';
 import { migrateDataToSessionDefinitions } from '@/lib/db/migrate-data-v2';
 
 const DATABASE_NAME = 'your-set.db';
 
-export const SCHEMA_VERSION = SCHEMA_VERSION_002;
+export const SCHEMA_VERSION = SCHEMA_VERSION_005;
 
 let database: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -31,6 +34,24 @@ async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     await db.execAsync(MIGRATION_002);
     await migrateDataToSessionDefinitions(db);
     await db.runAsync('INSERT INTO schema_migrations (version) VALUES (?)', SCHEMA_VERSION_002);
+    version = SCHEMA_VERSION_002;
+  }
+
+  if (version < SCHEMA_VERSION_003) {
+    await db.execAsync(MIGRATION_003);
+    await db.runAsync('INSERT INTO schema_migrations (version) VALUES (?)', SCHEMA_VERSION_003);
+    version = SCHEMA_VERSION_003;
+  }
+
+  if (version < SCHEMA_VERSION_004) {
+    await db.execAsync(MIGRATION_004);
+    await db.runAsync('INSERT INTO schema_migrations (version) VALUES (?)', SCHEMA_VERSION_004);
+    version = SCHEMA_VERSION_004;
+  }
+
+  if (version < SCHEMA_VERSION_005) {
+    await db.execAsync(MIGRATION_005);
+    await db.runAsync('INSERT INTO schema_migrations (version) VALUES (?)', SCHEMA_VERSION_005);
   }
 }
 

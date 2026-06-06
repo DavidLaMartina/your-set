@@ -1,9 +1,8 @@
 import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
-import * as VariantRepo from '@/lib/db/repositories/exercise-variant-repository';
 import * as SessionRepo from '@/lib/db/repositories/session-repository';
 import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
 import * as SetRepo from '@/lib/db/repositories/set-repository';
-import type { HistorySetRow, SetWithVideo, VariantHistoryView } from '@/types/domain';
+import type { ExerciseHistoryView, HistorySetRow, SetWithVideo } from '@/types/domain';
 
 async function enrichSetRow(
   set: Awaited<ReturnType<typeof SetRepo.getSetById>>,
@@ -23,14 +22,11 @@ async function enrichSetRow(
   return { ...row, sessionName };
 }
 
-export async function loadVariantHistory(variantId: string): Promise<VariantHistoryView | null> {
-  const variant = await VariantRepo.getVariantById(variantId);
-  if (!variant) return null;
-
-  const exercise = await ExerciseRepo.getExerciseById(variant.exerciseId);
+export async function loadExerciseHistory(exerciseId: string): Promise<ExerciseHistoryView | null> {
+  const exercise = await ExerciseRepo.getExerciseWithMeta(exerciseId);
   if (!exercise) return null;
 
-  const sets = await SetRepo.listSetsByVariant({ exerciseVariantId: variantId });
+  const sets = await SetRepo.listSetsByExercise(exerciseId);
   const recentSets = (
     await Promise.all(sets.map((s) => enrichSetRow(s)))
   ).filter((r): r is HistorySetRow => r != null);
@@ -41,7 +37,7 @@ export async function loadVariantHistory(variantId: string): Promise<VariantHist
 
   const comparableSets = recentSets.filter((s) => s.setType === 'top_set').slice(0, 10);
 
-  return { variant, exercise, recentSets, bestSets, comparableSets };
+  return { exercise, recentSets, bestSets, comparableSets };
 }
 
 export async function loadSetWithContext(setId: string): Promise<HistorySetRow | null> {

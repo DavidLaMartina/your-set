@@ -46,44 +46,51 @@ A future backend would add its own entities and EF migrations against the **same
 |----|----------|-------------|
 | **Sessions** tab | `sessions` | `Session` (definition) |
 | **Workouts** tab | `session_instances` | `SessionInstance` (one gym visit) |
-| **Exercises** tab | `exercises` / `exercise_variants` | `Exercise` / `ExerciseVariant` |
+| **Exercises** tab | `exercises` (+ `implements` / `muscles` / `manufacturers`) | `Exercise` |
 
 ## Design principles
 
 | Principle | Detail |
 |-----------|--------|
-| Set-first | Query all sets for a variant (or exercise) by `performed_at`, weight, reps, etc. |
+| Set-first | Query all sets for an exercise by `performed_at`, weight, reps, etc. |
 | Session-optional | `sets.session_instance_id` may be `NULL` — set-only logging is valid |
 | Optional end | `session_instances.ended_at` is nullable; never required to save or view sets |
 | One time field | `performedAt` on the set is what UI and filters use for “when” |
 
-## Entity relationship (schema v2)
+## Entity relationship (schema v5)
+
+The exercise/variant split was collapsed in v5 — the **exercise is the single
+loggable unit**. Free-text muscle/equipment became foreign keys to seeded
+reference tables, with secondary muscles in a join table.
 
 ```mermaid
 erDiagram
-  Exercise ||--o{ ExerciseVariant : has
-  ExerciseVariant ||--o{ Set : logged_as
+  Implement ||--o{ Exercise : implement_id
+  Muscle ||--o{ Exercise : primary_muscle_id
+  Manufacturer ||--o{ Exercise : manufacturer_id
+  Exercise ||--o{ ExerciseSecondaryMuscle : has
+  Muscle ||--o{ ExerciseSecondaryMuscle : referenced_by
+  Exercise ||--o{ Set : logged_as
   Session ||--o{ SessionExercise : plans
-  ExerciseVariant ||--o{ SessionExercise : planned_as
+  Exercise ||--o{ SessionExercise : planned_as
   Session ||--o{ SessionInstance : instances_of
   SessionInstance ||--o{ Set : optionally_groups
   SessionInstance ||--o{ SessionInstanceExercise : contains
-  ExerciseVariant ||--o{ SessionInstanceExercise : block_in_visit
+  Exercise ||--o{ SessionInstanceExercise : block_in_visit
   SessionInstanceExercise ||--o{ Set : optional_block_link
   Set ||--o| SetVideo : optional
 ```
 
 ## Three query modes
 
-### 1. Set-first (variant or exercise)
+### 1. Set-first (exercise)
 
 All sets for a movement, **with or without** a session instance. Filter by date range, weight, reps, set type.
 
-- By variant ID: `WHERE exercise_variant_id = ?`
-- By parent exercise ID: join `exercise_variants` on `exercise_id = ?`
+- By exercise ID: `WHERE exercise_id = ?`
 - Order: `performed_at DESC`
 
-See `lib/db/queries.ts` → `SQL_SETS_BY_VARIANT`, `SQL_SETS_BY_EXERCISE`.
+See `lib/db/queries.ts` → `SQL_SETS_BY_EXERCISE`.
 
 ### 2. Session-instance-first
 
@@ -94,46 +101,49 @@ All sets and exercise blocks for one visit.
 
 See `SQL_SETS_BY_SESSION_INSTANCE`, `SQL_INSTANCE_EXERCISES_BY_INSTANCE`.
 
-### 3. Variant within one instance
+### 3. Exercise within one instance
 
-Sets for one variant **in** one visit.
+Sets for one exercise **in** one visit.
 
-- `WHERE session_instance_id = ? AND exercise_variant_id = ?`
+- `WHERE session_instance_id = ? AND exercise_id = ?`
 
-See `SQL_SETS_BY_SESSION_INSTANCE_AND_VARIANT`.
+See `SQL_SETS_BY_SESSION_INSTANCE_AND_EXERCISE`.
 
 ## Entities
 
+### Reference lookups (stock)
+
+Seeded by migration 005. Shared, read-mostly catalog data.
+
+- **`implements`** — `id`, `name`, `sort_order` (barbell, dumbbell, machine, cable, smith, bodyweight, …).
+- **`muscles`** — `id`, `name`, `region`, `sort_order` (chest, lats, quads, …). `region` groups muscles for future rollups.
+- **`manufacturers`** — `id`, `name` (Hammer Strength, Nautilus, …); accounts for machine variations.
+
 ### Exercise
 
-Broad movement category (e.g. “Incline Press”). Sets are **not** logged directly to exercises.
+The **single loggable movement** (e.g. “Smith high incline press”). Sets log directly to an exercise. Variants were folded into this in v5.
 
 | Field (domain) | SQL column | Type | Notes |
 |----------------|------------|------|-------|
 | id | id | TEXT PK | UUID |
 | name | name | TEXT | Required |
-| defaultMuscleGroup | default_muscle_group | TEXT | Nullable |
-| createdAt | created_at | TEXT | ISO datetime |
-| updatedAt | updated_at | TEXT | ISO datetime |
+| implementId | implement_id | TEXT FK | → implements.id; nullable |
+| primaryMuscleId | primary_muscle_id | TEXT FK | → muscles.id; nullable |
+| manufacturerId | manufacturer_id | TEXT FK | → manufacturers.id; nullable |
+| origin | origin | TEXT | `stock` \| `custom`; seam for shared library |
+| catalogId | catalog_id | TEXT | nullable; stock row a custom copy derives from |
+| notes | notes | TEXT | nullable (setup notes) |
+| createdAt / updatedAt | … | TEXT | ISO datetime |
 
-Table: `exercises`. Deleting an exercise **cascades** to its variants (`ON DELETE CASCADE`).
+`implement` / `primaryMuscle` are nullable so users can jot a name on the fly; anything promoted into the shared library should set both.
 
-### ExerciseVariant
+Table: `exercises`. Referenced by `sets.exercise_id`, session planned/instance blocks, etc.
 
-Specific setup under an exercise — the unit for set-first history and logging (e.g. “Smith high incline”).
+**Secondary muscles** live in a join table `exercise_secondary_muscles` (`exercise_id`, `muscle_id`, PK both) — queryable ("all exercises that hit biceps") and FK-safe, rather than a comma-list.
 
-| Field (domain) | SQL column | Type | Notes |
-|----------------|------------|------|-------|
-| id | id | TEXT PK | UUID |
-| exerciseId | exercise_id | TEXT FK | → exercises.id |
-| name | name | TEXT | Required |
-| muscleGroup | muscle_group | TEXT | Nullable |
-| equipment | equipment | TEXT | Nullable |
-| setupNotes | setup_notes | TEXT | Nullable |
-| createdAt | created_at | TEXT | ISO datetime |
-| updatedAt | updated_at | TEXT | ISO datetime |
+#### Library at scale (future cloud)
 
-Table: `exercise_variants`. Referenced by `sets.exercise_variant_id`, session planned/instance blocks, etc.
+User-created exercises stay in the **same** `exercises` table with a discriminator (`origin`, plus a server-side `owner_user_id`) — never per-user tables. The global library is `origin='stock'` / `owner_user_id IS NULL`; reads filter `owner_user_id = :me OR owner_user_id IS NULL`. Sets shard by `user_id` (composite index `(user_id, exercise_id, performed_at)`); no cross-user joins, so it partitions cleanly to billions of rows.
 
 ### Session (definition)
 
@@ -158,7 +168,7 @@ Default prescriptions for a definition. Copied into instance blocks when startin
 |-------|------|-------|
 | id | TEXT PK | UUID |
 | sessionId | TEXT FK | → sessions |
-| exerciseVariantId | TEXT FK | → exercise_variants |
+| exerciseId | TEXT FK | → exercises |
 | sortOrder | INTEGER | Order in session |
 | targetSets | INTEGER | Nullable |
 | targetRepsMin / targetRepsMax | INTEGER | Nullable |
@@ -186,22 +196,23 @@ Table: `session_instances` (migrated from `workouts` in 002).
 |-------|------|-------|
 | id | TEXT PK | UUID |
 | sessionInstanceId | TEXT FK | → session_instances |
-| exerciseVariantId | TEXT FK | |
+| exerciseId | TEXT FK | → exercises |
 | sortOrder | INTEGER | |
 | notes | TEXT | Nullable |
 
-Table: `session_instance_exercises` (migrated from `workout_exercises`).
+Table: `session_instance_exercises`.
 
 ### Set
 
 | Field | Type | Notes |
 |-------|------|-------|
+| exerciseId | TEXT FK | → exercises (required) |
 | sessionInstanceId | TEXT FK | Nullable |
 | sessionInstanceExerciseId | TEXT FK | Nullable; requires instance id |
 | performedAt | TEXT | **Canonical time** |
 | … | | weight, reps, rir, set_type, etc. |
 
-Legacy columns `workout_id` / `workout_exercise_id` may remain on upgraded DBs; app reads/writes `session_instance_*` and dual-writes legacy columns for CHECK compatibility.
+As of v5, `sets.exercise_id` references `exercises` directly (no variant layer); `session_instance_id` / `session_instance_exercise_id` remain the only session links.
 
 ### SetVideo
 
@@ -213,10 +224,14 @@ Unchanged.
 |---------|----------------|---------|
 | 1 | `lib/db/migrations/001-initial.ts` | Exercises, variants, legacy `workouts` / `workout_exercises`, sets, set_videos |
 | 2 | `lib/db/migrations/002-sessions.ts` | `sessions`, `session_exercises`, `session_instances`, `session_instance_exercises`; migrates old workout rows; adds `sets.session_instance_id` |
+| 3 | `lib/db/migrations/003-sets-drop-legacy-workout-fks.ts` | Rebuilds `sets` without `workout_id` / `workout_exercise_id` FKs (fixes inserts after 002) |
 
 After v2, `lib/db/migrate-data-v2.ts` groups legacy instance names into `sessions` rows (`legacy_name:` in notes).
 
-`schema_migrations.version` tracks applied versions. Current target: **2** (`SCHEMA_VERSION` in `lib/db/client.ts`).
+| 4 | `lib/db/migrations/004-drop-set-failure-flag.ts` | Drops `is_failure` from `sets` |
+| 5 | `lib/db/migrations/005-exercises-flatten.ts` | Collapses `exercise_variants` into `exercises`; adds `implements` / `muscles` / `manufacturers` (seeded) + `exercise_secondary_muscles`; remaps `sets` / session FKs to `exercise_id`. Pre-release data is dropped and reseeded. |
+
+`schema_migrations.version` tracks applied versions. Current target: **5** (`SCHEMA_VERSION` in `lib/db/client.ts`).
 
 ## TypeScript mapping
 

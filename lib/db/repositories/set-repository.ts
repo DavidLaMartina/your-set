@@ -7,7 +7,7 @@ import type { Set, SetListFilters, SetType } from '@/types/domain';
 import { isSetSessionLinkValid } from '@/types/set-validation';
 
 export type CreateSetInput = {
-  exerciseVariantId: string;
+  exerciseId: string;
   performedAt: string;
   sessionInstanceId?: string | null;
   sessionInstanceExerciseId?: string | null;
@@ -15,18 +15,13 @@ export type CreateSetInput = {
   weight?: number | null;
   reps?: number | null;
   rir?: number | null;
-  isFailure?: boolean;
   setType?: SetType;
   notes?: string | null;
 };
 
 export type UpdateSetInput = Partial<
-  Omit<CreateSetInput, 'exerciseVariantId'> & { exerciseVariantId?: string }
+  Omit<CreateSetInput, 'exerciseId'> & { exerciseId?: string }
 >;
-
-function instanceIdColumn(alias: string): string {
-  return `COALESCE(${alias}.session_instance_id, ${alias}.workout_id)`;
-}
 
 function buildFilterClause(
   filters: SetListFilters,
@@ -35,12 +30,12 @@ function buildFilterClause(
   const clauses: string[] = [];
   const params: (string | number)[] = [];
 
-  if (filters.exerciseVariantId) {
-    clauses.push(`${alias}.exercise_variant_id = ?`);
-    params.push(filters.exerciseVariantId);
+  if (filters.exerciseId) {
+    clauses.push(`${alias}.exercise_id = ?`);
+    params.push(filters.exerciseId);
   }
   if (filters.sessionInstanceId) {
-    clauses.push(`${instanceIdColumn(alias)} = ?`);
+    clauses.push(`${alias}.session_instance_id = ?`);
     params.push(filters.sessionInstanceId);
   }
   if (filters.performedAtFrom) {
@@ -95,47 +90,22 @@ export async function listSets(filters: SetListFilters = {}): Promise<Set[]> {
   return rows.map(mapSetRow);
 }
 
-export async function listSetsByVariant(filters: SetListFilters): Promise<Set[]> {
-  if (!filters.exerciseVariantId) {
-    throw new Error('listSetsByVariant requires exerciseVariantId');
-  }
-  return listSets(filters);
-}
-
 export async function listSetsByExercise(
   exerciseId: string,
-  filters: Omit<SetListFilters, 'exerciseId' | 'exerciseVariantId'> = {},
+  filters: Omit<SetListFilters, 'exerciseId'> = {},
 ): Promise<Set[]> {
-  const db = await getDb();
-  const clauses = ['ev.exercise_id = ?'];
-  const params: (string | number)[] = [exerciseId];
-
-  const extra = buildFilterClause({ ...filters, exerciseVariantId: undefined });
-  if (extra.where) {
-    const extraClauses = extra.where.replace(/^WHERE /, '').split(' AND ');
-    clauses.push(...extraClauses);
-    params.push(...extra.params);
-  }
-
-  const rows = await db.getAllAsync<SetRow>(
-    `SELECT s.* FROM sets s
-     INNER JOIN exercise_variants ev ON ev.id = s.exercise_variant_id
-     WHERE ${clauses.join(' AND ')}
-     ORDER BY s.performed_at DESC`,
-    ...params,
-  );
-  return rows.map(mapSetRow);
+  return listSets({ ...filters, exerciseId });
 }
 
 export async function listSetsBySessionInstance(sessionInstanceId: string): Promise<Set[]> {
   return listSets({ sessionInstanceId });
 }
 
-export async function listSetsBySessionInstanceAndVariant(
+export async function listSetsBySessionInstanceAndExercise(
   sessionInstanceId: string,
-  exerciseVariantId: string,
+  exerciseId: string,
 ): Promise<Set[]> {
-  return listSets({ sessionInstanceId, exerciseVariantId });
+  return listSets({ sessionInstanceId, exerciseId });
 }
 
 export async function createSet(input: CreateSetInput): Promise<Set> {
@@ -144,7 +114,7 @@ export async function createSet(input: CreateSetInput): Promise<Set> {
 
   const draft: Set = {
     id: newId(),
-    exerciseVariantId: input.exerciseVariantId,
+    exerciseId: input.exerciseId,
     performedAt: input.performedAt,
     sessionInstanceId: instanceId,
     sessionInstanceExerciseId: instanceExerciseId,
@@ -152,7 +122,6 @@ export async function createSet(input: CreateSetInput): Promise<Set> {
     weight: input.weight ?? null,
     reps: input.reps ?? null,
     rir: input.rir ?? null,
-    isFailure: input.isFailure ?? false,
     setType: input.setType ?? 'straight',
     notes: input.notes ?? null,
     createdAt: isoNow(),
@@ -166,23 +135,19 @@ export async function createSet(input: CreateSetInput): Promise<Set> {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO sets (
-      id, exercise_variant_id, performed_at,
-      workout_id, workout_exercise_id,
+      id, exercise_id, performed_at,
       session_instance_id, session_instance_exercise_id,
-      sort_order, weight, reps, rir, is_failure, set_type, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sort_order, weight, reps, rir, set_type, notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     draft.id,
-    draft.exerciseVariantId,
+    draft.exerciseId,
     draft.performedAt,
-    instanceId,
-    instanceExerciseId,
     instanceId,
     instanceExerciseId,
     draft.sortOrder,
     draft.weight,
     draft.reps,
     draft.rir,
-    draft.isFailure ? 1 : 0,
     draft.setType,
     draft.notes,
     draft.createdAt,
@@ -209,22 +174,18 @@ export async function updateSet(id: string, input: UpdateSetInput): Promise<Set 
   const db = await getDb();
   await db.runAsync(
     `UPDATE sets SET
-      exercise_variant_id = ?, performed_at = ?,
-      workout_id = ?, workout_exercise_id = ?,
+      exercise_id = ?, performed_at = ?,
       session_instance_id = ?, session_instance_exercise_id = ?,
-      sort_order = ?, weight = ?, reps = ?, rir = ?, is_failure = ?, set_type = ?, notes = ?, updated_at = ?
+      sort_order = ?, weight = ?, reps = ?, rir = ?, set_type = ?, notes = ?, updated_at = ?
      WHERE id = ?`,
-    next.exerciseVariantId,
+    next.exerciseId,
     next.performedAt,
-    next.sessionInstanceId,
-    next.sessionInstanceExerciseId,
     next.sessionInstanceId,
     next.sessionInstanceExerciseId,
     next.sortOrder,
     next.weight,
     next.reps,
     next.rir,
-    next.isFailure ? 1 : 0,
     next.setType,
     next.notes,
     next.updatedAt,

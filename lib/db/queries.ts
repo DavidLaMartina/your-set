@@ -3,11 +3,11 @@
  * Repositories compose these with bound parameters.
  */
 
-/** 1. All sets for a variant (session optional), with filters on performed_at, load, reps. */
-export const SQL_SETS_BY_VARIANT = `
+/** 1. All sets for an exercise (session optional), with filters on performed_at, load, reps. */
+export const SQL_SETS_BY_EXERCISE = `
 SELECT s.*
 FROM sets s
-WHERE s.exercise_variant_id = ?
+WHERE s.exercise_id = ?
   AND (? IS NULL OR s.performed_at >= ?)
   AND (? IS NULL OR s.performed_at < ?)
   AND (? IS NULL OR s.weight >= ?)
@@ -17,22 +17,11 @@ WHERE s.exercise_variant_id = ?
 ORDER BY s.performed_at DESC;
 `;
 
-/** 1b. All sets for any variant under a parent exercise. */
-export const SQL_SETS_BY_EXERCISE = `
-SELECT s.*
-FROM sets s
-INNER JOIN exercise_variants ev ON ev.id = s.exercise_variant_id
-WHERE ev.exercise_id = ?
-  AND (? IS NULL OR s.performed_at >= ?)
-  AND (? IS NULL OR s.performed_at < ?)
-ORDER BY s.performed_at DESC;
-`;
-
 /** 2. All sets in a session instance (session-first). */
 export const SQL_SETS_BY_SESSION_INSTANCE = `
 SELECT s.*
 FROM sets s
-WHERE COALESCE(s.session_instance_id, s.workout_id) = ?
+WHERE s.session_instance_id = ?
 ORDER BY s.performed_at ASC, s.sort_order ASC;
 `;
 
@@ -44,12 +33,12 @@ WHERE sie.session_instance_id = ?
 ORDER BY sie.sort_order ASC;
 `;
 
-/** 3. Sets for a variant within a specific session instance. */
-export const SQL_SETS_BY_SESSION_INSTANCE_AND_VARIANT = `
+/** 3. Sets for an exercise within a specific session instance. */
+export const SQL_SETS_BY_SESSION_INSTANCE_AND_EXERCISE = `
 SELECT s.*
 FROM sets s
-WHERE COALESCE(s.session_instance_id, s.workout_id) = ?
-  AND s.exercise_variant_id = ?
+WHERE s.session_instance_id = ?
+  AND s.exercise_id = ?
 ORDER BY s.performed_at ASC, s.sort_order ASC;
 `;
 

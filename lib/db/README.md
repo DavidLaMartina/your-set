@@ -13,16 +13,18 @@ Set-centric SQLite schema. **Sets do not require a session.** Sessions (`workout
 
 ## Three query modes
 
-1. **Set-first / variant-first** — `SQL_SETS_BY_VARIANT` or `SQL_SETS_BY_EXERCISE`, filter on `performed_at`, weight, reps.
-2. **Session-first** — `SQL_SETS_BY_WORKOUT` + `SQL_WORKOUT_EXERCISES_BY_WORKOUT`.
-3. **Variant within session** — `SQL_SETS_BY_WORKOUT_AND_VARIANT`.
+1. **Set-first (exercise)** — `SQL_SETS_BY_EXERCISE`, filter on `performed_at`, weight, reps.
+2. **Session-instance-first** — `SQL_SETS_BY_SESSION_INSTANCE` + `SQL_INSTANCE_EXERCISES_BY_INSTANCE`.
+3. **Exercise within session instance** — `SQL_SETS_BY_SESSION_INSTANCE_AND_EXERCISE`.
+
+> The exercise is the single loggable unit as of schema v5 (`exercise_variants` removed). See `migrations/005-exercises-flatten.ts`.
 
 ## Session rules
 
-- `workouts.ended_at` is nullable; never required to save sets.
-- `sets.workout_id` and `sets.workout_exercise_id` are nullable.
+- `session_instances.ended_at` is nullable; never required to save sets.
+- `sets.session_instance_id` and `sets.session_instance_exercise_id` are nullable.
 - `sets.performed_at` is required — canonical date/time for every set.
-- `CHECK (workout_exercise_id IS NULL OR workout_id IS NOT NULL)` on `sets`.
+- `CHECK (session_instance_exercise_id IS NULL OR session_instance_id IS NOT NULL)` on `sets`.
 
 ## Phase 2
 

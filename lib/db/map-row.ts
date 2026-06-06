@@ -1,6 +1,9 @@
 import type {
   Exercise,
-  ExerciseVariant,
+  ExerciseOrigin,
+  Implement,
+  Manufacturer,
+  Muscle,
   Session,
   SessionExercise,
   SessionInstance,
@@ -13,7 +16,9 @@ import type {
 } from '@/types/domain';
 import type {
   ExerciseRow,
-  ExerciseVariantRow,
+  ImplementRow,
+  ManufacturerRow,
+  MuscleRow,
   SessionExerciseRow,
   SessionInstanceExerciseRow,
   SessionInstanceRow,
@@ -22,24 +27,28 @@ import type {
   SetVideoRow,
 } from '@/lib/db/row-types';
 
+export function mapImplementRow(row: ImplementRow): Implement {
+  return { id: row.id, name: row.name, sortOrder: row.sort_order };
+}
+
+export function mapMuscleRow(row: MuscleRow): Muscle {
+  return { id: row.id, name: row.name, region: row.region, sortOrder: row.sort_order };
+}
+
+export function mapManufacturerRow(row: ManufacturerRow): Manufacturer {
+  return { id: row.id, name: row.name };
+}
+
 export function mapExerciseRow(row: ExerciseRow): Exercise {
   return {
     id: row.id,
     name: row.name,
-    defaultMuscleGroup: row.default_muscle_group,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-export function mapExerciseVariantRow(row: ExerciseVariantRow): ExerciseVariant {
-  return {
-    id: row.id,
-    exerciseId: row.exercise_id,
-    name: row.name,
-    muscleGroup: row.muscle_group,
-    equipment: row.equipment,
-    setupNotes: row.setup_notes,
+    implementId: row.implement_id,
+    primaryMuscleId: row.primary_muscle_id,
+    manufacturerId: row.manufacturer_id,
+    origin: row.origin as ExerciseOrigin,
+    catalogId: row.catalog_id,
+    notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -61,7 +70,7 @@ export function mapSessionExerciseRow(row: SessionExerciseRow): SessionExercise 
   return {
     id: row.id,
     sessionId: row.session_id,
-    exerciseVariantId: row.exercise_variant_id,
+    exerciseId: row.exercise_id,
     sortOrder: row.sort_order,
     targetSets: row.target_sets,
     targetRepsMin: row.target_reps_min,
@@ -92,7 +101,7 @@ export function mapSessionInstanceExerciseRow(
   return {
     id: row.id,
     sessionInstanceId: row.session_instance_id,
-    exerciseVariantId: row.exercise_variant_id,
+    exerciseId: row.exercise_id,
     sortOrder: row.sort_order,
     notes: row.notes,
     createdAt: row.created_at,
@@ -103,15 +112,14 @@ export function mapSessionInstanceExerciseRow(
 export function mapSetRow(row: SetRow): Set {
   return {
     id: row.id,
-    exerciseVariantId: row.exercise_variant_id,
+    exerciseId: row.exercise_id,
     performedAt: row.performed_at,
-    sessionInstanceId: row.session_instance_id ?? row.workout_id,
-    sessionInstanceExerciseId: row.session_instance_exercise_id ?? row.workout_exercise_id,
+    sessionInstanceId: row.session_instance_id,
+    sessionInstanceExerciseId: row.session_instance_exercise_id,
     sortOrder: row.sort_order,
     weight: row.weight,
     reps: row.reps,
     rir: row.rir,
-    isFailure: row.is_failure !== 0,
     setType: row.set_type as SetType,
     notes: row.notes,
     createdAt: row.created_at,

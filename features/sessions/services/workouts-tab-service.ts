@@ -11,7 +11,7 @@ export type WorkoutListItem = {
   instance: SessionInstance;
   sessionName: string | null;
   setCount: number;
-  variantCount: number;
+  exerciseCount: number;
 };
 
 export type WorkoutsTabData = {
@@ -48,19 +48,19 @@ async function listAllWorkoutItems(): Promise<WorkoutListItem[]> {
       const instance = mapSessionInstanceRow(row);
       const setCountRow = await db.getFirstAsync<{ count: number }>(
         `SELECT COUNT(*) as count FROM sets
-         WHERE COALESCE(session_instance_id, workout_id) = ?`,
+         WHERE session_instance_id = ?`,
         instance.id,
       );
-      const variantCountRow = await db.getFirstAsync<{ count: number }>(
-        `SELECT COUNT(DISTINCT exercise_variant_id) as count FROM sets
-         WHERE COALESCE(session_instance_id, workout_id) = ?`,
+      const exerciseCountRow = await db.getFirstAsync<{ count: number }>(
+        `SELECT COUNT(DISTINCT exercise_id) as count FROM sets
+         WHERE session_instance_id = ?`,
         instance.id,
       );
       return {
         instance,
         sessionName: row.session_name,
         setCount: setCountRow?.count ?? 0,
-        variantCount: variantCountRow?.count ?? 0,
+        exerciseCount: exerciseCountRow?.count ?? 0,
       };
     }),
   );
@@ -86,7 +86,7 @@ export async function getWorkoutDeleteSummary(instanceId: string): Promise<{
   const db = await getDb();
   const setCountRow = await db.getFirstAsync<{ count: number }>(
     `SELECT COUNT(*) as count FROM sets
-     WHERE COALESCE(session_instance_id, workout_id) = ?`,
+     WHERE session_instance_id = ?`,
     instanceId,
   );
 
@@ -102,7 +102,7 @@ export async function startSessionFromDefinition(sessionId: string): Promise<Ses
   for (const exercise of planned) {
     await SessionInstanceExerciseRepo.createSessionInstanceExercise({
       sessionInstanceId: instance.id,
-      exerciseVariantId: exercise.exerciseVariantId,
+      exerciseId: exercise.exerciseId,
       sortOrder: exercise.sortOrder,
       notes: exercise.prescriptionNotes,
     });

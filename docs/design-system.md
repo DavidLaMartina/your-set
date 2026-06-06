@@ -39,7 +39,7 @@ Replace starter `constants/theme.ts` colors during Phase 1 with `lib/theme/token
 |-------|-----|-------|
 | `accent.primary` | `#C9A227` | Gold/bronze—PR highlights, active tab (optional) |
 | `accent.secondary` | `#3B82F6` | Links, compare mode indicator (sparingly) |
-| `accent.danger` | `#E5484D` | Failure set, destructive |
+| `accent.danger` | `#E5484D` | Destructive actions |
 
 Prefer monochrome + one accent. No rainbow muscle-group colors in MVP.
 

@@ -1,18 +1,28 @@
 import { getDb } from '@/lib/db/client';
 import { newId } from '@/lib/db/id';
-import { mapExerciseRow } from '@/lib/db/map-row';
+import { mapExerciseRow, mapMuscleRow } from '@/lib/db/map-row';
 import { isoNow } from '@/lib/db/timestamps';
-import type { ExerciseRow } from '@/lib/db/row-types';
-import type { Exercise } from '@/types/domain';
+import type { ExerciseRow, MuscleRow } from '@/lib/db/row-types';
+import type { Exercise, ExerciseOrigin, ExerciseWithMeta, Muscle } from '@/types/domain';
 
 export type CreateExerciseInput = {
   name: string;
-  defaultMuscleGroup?: string | null;
+  implementId?: string | null;
+  primaryMuscleId?: string | null;
+  manufacturerId?: string | null;
+  origin?: ExerciseOrigin;
+  catalogId?: string | null;
+  notes?: string | null;
+  secondaryMuscleIds?: string[];
 };
 
 export type UpdateExerciseInput = {
   name?: string;
-  defaultMuscleGroup?: string | null;
+  implementId?: string | null;
+  primaryMuscleId?: string | null;
+  manufacturerId?: string | null;
+  notes?: string | null;
+  secondaryMuscleIds?: string[];
 };
 
 export async function listExercises(): Promise<Exercise[]> {
@@ -27,35 +37,113 @@ export async function getExerciseById(id: string): Promise<Exercise | null> {
   return row ? mapExerciseRow(row) : null;
 }
 
+export async function getSecondaryMuscles(exerciseId: string): Promise<Muscle[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<MuscleRow>(
+    `SELECT m.* FROM exercise_secondary_muscles esm
+     INNER JOIN muscles m ON m.id = esm.muscle_id
+     WHERE esm.exercise_id = ?
+     ORDER BY m.sort_order ASC, m.name ASC`,
+    exerciseId,
+  );
+  return rows.map(mapMuscleRow);
+}
+
+/** Exercise joined with reference names + secondary muscles for display. */
+export async function getExerciseWithMeta(id: string): Promise<ExerciseWithMeta | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<
+    ExerciseRow & {
+      implement_name: string | null;
+      muscle_name: string | null;
+      manufacturer_name: string | null;
+    }
+  >(
+    `SELECT e.*,
+            i.name AS implement_name,
+            m.name AS muscle_name,
+            mf.name AS manufacturer_name
+     FROM exercises e
+     LEFT JOIN implements i ON i.id = e.implement_id
+     LEFT JOIN muscles m ON m.id = e.primary_muscle_id
+     LEFT JOIN manufacturers mf ON mf.id = e.manufacturer_id
+     WHERE e.id = ?`,
+    id,
+  );
+  if (!row) return null;
+
+  const secondaryMuscles = await getSecondaryMuscles(id);
+  return {
+    ...mapExerciseRow(row),
+    implementName: row.implement_name,
+    primaryMuscleName: row.muscle_name,
+    manufacturerName: row.manufacturer_name,
+    secondaryMuscles,
+  };
+}
+
+async function replaceSecondaryMuscles(exerciseId: string, muscleIds: string[]): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM exercise_secondary_muscles WHERE exercise_id = ?', exerciseId);
+  for (const muscleId of muscleIds) {
+    if (muscleId === '') continue;
+    await db.runAsync(
+      'INSERT OR IGNORE INTO exercise_secondary_muscles (exercise_id, muscle_id) VALUES (?, ?)',
+      exerciseId,
+      muscleId,
+    );
+  }
+}
+
 export async function createExercise(input: CreateExerciseInput): Promise<Exercise> {
   const db = await getDb();
   const now = isoNow();
   const id = newId();
   await db.runAsync(
-    `INSERT INTO exercises (id, name, default_muscle_group, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO exercises
+      (id, name, implement_id, primary_muscle_id, manufacturer_id, origin, catalog_id, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     input.name.trim(),
-    input.defaultMuscleGroup ?? null,
+    input.implementId ?? null,
+    input.primaryMuscleId ?? null,
+    input.manufacturerId ?? null,
+    input.origin ?? 'custom',
+    input.catalogId ?? null,
+    input.notes ?? null,
     now,
     now,
   );
+  if (input.secondaryMuscleIds?.length) {
+    await replaceSecondaryMuscles(id, input.secondaryMuscleIds);
+  }
   return (await getExerciseById(id))!;
 }
 
-export async function updateExercise(id: string, input: UpdateExerciseInput): Promise<Exercise | null> {
+export async function updateExercise(
+  id: string,
+  input: UpdateExerciseInput,
+): Promise<Exercise | null> {
   const existing = await getExerciseById(id);
   if (!existing) return null;
 
   const db = await getDb();
   const now = isoNow();
   await db.runAsync(
-    `UPDATE exercises SET name = ?, default_muscle_group = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE exercises
+     SET name = ?, implement_id = ?, primary_muscle_id = ?, manufacturer_id = ?, notes = ?, updated_at = ?
+     WHERE id = ?`,
     input.name?.trim() ?? existing.name,
-    input.defaultMuscleGroup !== undefined ? input.defaultMuscleGroup : existing.defaultMuscleGroup,
+    input.implementId !== undefined ? input.implementId : existing.implementId,
+    input.primaryMuscleId !== undefined ? input.primaryMuscleId : existing.primaryMuscleId,
+    input.manufacturerId !== undefined ? input.manufacturerId : existing.manufacturerId,
+    input.notes !== undefined ? input.notes : existing.notes,
     now,
     id,
   );
+  if (input.secondaryMuscleIds !== undefined) {
+    await replaceSecondaryMuscles(id, input.secondaryMuscleIds);
+  }
   return getExerciseById(id);
 }
 

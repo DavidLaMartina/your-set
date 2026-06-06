@@ -53,7 +53,6 @@ CREATE TABLE sets (
   weight REAL,
   reps INTEGER,
   rir INTEGER,
-  is_failure INTEGER NOT NULL DEFAULT 0,
   set_type TEXT NOT NULL DEFAULT 'straight',
   notes TEXT,
   created_at TEXT NOT NULL,

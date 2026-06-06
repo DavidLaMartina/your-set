@@ -10,13 +10,9 @@ import {
   loadExercisesByRecency,
   type ExerciseWithRecency,
 } from '@/features/exercises/services/exercises-tab-service';
-import { formatDate, formatPerformedAt } from '@/lib/format';
-import {
-  exerciseDetailHref,
-  newExerciseHref,
-  variantHistoryHref,
-} from '@/lib/navigation';
-import { colors, spacing } from '@/lib/theme/tokens';
+import { formatDate } from '@/lib/format';
+import { exerciseDetailHref, newExerciseHref } from '@/lib/navigation';
+import { colors } from '@/lib/theme/tokens';
 
 export default function ExercisesScreen() {
   const [items, setItems] = useState<ExerciseWithRecency[]>([]);
@@ -60,51 +56,27 @@ export default function ExercisesScreen() {
         </AppText>
       ) : null}
 
-      {items.map(({ exercise, lastPerformedAt, variants }) => (
-        <Card
-          key={exercise.id}
-          title={exercise.name}
-          subtitle={
-            lastPerformedAt
-              ? `Last performed ${formatDate(lastPerformedAt)}`
-              : exercise.defaultMuscleGroup ?? 'No sets logged'
-          }
-          onHeaderPress={() => router.push(exerciseDetailHref(exercise.id))}
-          headerRight={
-            <AppText variant="caption" color={colors.accent.secondary}>
-              Manage →
-            </AppText>
-          }>
-          <View style={styles.variantList}>
-            {variants.length === 0 ? (
-              <AppText variant="caption" muted>
-                No variants — open exercise to add
+      {items.map(({ exercise, implementName, primaryMuscleName, lastPerformedAt, setCount }) => {
+        const tags = [implementName, primaryMuscleName].filter(Boolean).join(' · ');
+        return (
+          <Card
+            key={exercise.id}
+            title={exercise.name}
+            subtitle={tags || undefined}
+            onPress={() => router.push(exerciseDetailHref(exercise.id))}
+            headerRight={
+              <AppText variant="caption" color={colors.accent.secondary}>
+                →
               </AppText>
-            ) : (
-              variants.map(({ variant, lastPerformedAt: variantLast }) => (
-                <View key={variant.id} style={styles.variantRow}>
-                  <AppText
-                    variant="body"
-                    color={colors.accent.secondary}
-                    onPress={() => router.push(variantHistoryHref(variant.id))}>
-                    {variant.name}
-                    {variant.equipment ? ` · ${variant.equipment}` : ''}
-                  </AppText>
-                  {variantLast ? (
-                    <AppText variant="caption" muted>
-                      {formatPerformedAt(variantLast)}
-                    </AppText>
-                  ) : (
-                    <AppText variant="caption" muted>
-                      No sets yet
-                    </AppText>
-                  )}
-                </View>
-              ))
-            )}
-          </View>
-        </Card>
-      ))}
+            }>
+            <AppText variant="caption" muted>
+              {lastPerformedAt
+                ? `Last performed ${formatDate(lastPerformedAt)} · ${setCount} set${setCount === 1 ? '' : 's'}`
+                : 'No sets logged yet'}
+            </AppText>
+          </Card>
+        );
+      })}
     </Screen>
   );
 }
@@ -112,11 +84,5 @@ export default function ExercisesScreen() {
 const styles = StyleSheet.create({
   header: {
     gap: 4,
-  },
-  variantList: {
-    gap: spacing.md,
-  },
-  variantRow: {
-    gap: 2,
   },
 });

@@ -14,19 +14,21 @@ import {
   reactivateSessionDefinition,
   retireSessionDefinition,
 } from '@/features/sessions/services/session-definitions-service';
+import {
+  loadPlannedExercises,
+  movePlannedExercise,
+  removePlannedExercise,
+  type PlannedExerciseRow,
+} from '@/features/sessions/services/session-lineup-service';
 import { confirmArchiveSession, confirmDeleteArchivedSession } from '@/lib/confirm-delete';
+import { exercisePickerHref } from '@/lib/navigation';
 import * as SessionRepo from '@/lib/db/repositories/session-repository';
-import * as SessionExerciseRepo from '@/lib/db/repositories/session-exercise-repository';
-import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
-import * as VariantRepo from '@/lib/db/repositories/exercise-variant-repository';
 import type { Session, SessionExercise } from '@/types/domain';
-
-type PlannedRow = SessionExercise & { variantName: string; exerciseName: string };
 
 export default function SessionDefinitionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [session, setSession] = useState<Session | null>(null);
-  const [planned, setPlanned] = useState<PlannedRow[]>([]);
+  const [planned, setPlanned] = useState<PlannedExerciseRow[]>([]);
   const [stats, setStats] = useState<{ plannedCount: number; instanceCount: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,21 +43,7 @@ export default function SessionDefinitionScreen() {
       }
       setSession(summary.session);
       setStats({ plannedCount: summary.plannedCount, instanceCount: summary.instanceCount });
-
-      const exercises = await SessionExerciseRepo.listSessionExercises(id);
-      const rows: PlannedRow[] = [];
-      for (const row of exercises) {
-        const variant = await VariantRepo.getVariantById(row.exerciseVariantId);
-        const exercise = variant
-          ? await ExerciseRepo.getExerciseById(variant.exerciseId)
-          : null;
-        rows.push({
-          ...row,
-          variantName: variant?.name ?? 'Unknown variant',
-          exerciseName: exercise?.name ?? 'Unknown exercise',
-        });
-      }
-      setPlanned(rows);
+      setPlanned(await loadPlannedExercises(id));
     } finally {
       setLoading(false);
     }
@@ -97,6 +85,21 @@ export default function SessionDefinitionScreen() {
     })();
   };
 
+  const handleRemovePlanned = (row: PlannedExerciseRow) => {
+    Alert.alert(
+      `Remove ${row.exerciseName}?`,
+      'Future workouts will not include this exercise until you add it again.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => void removePlannedExercise(row.id).then(() => refresh()),
+        },
+      ],
+    );
+  };
+
   if (!id) {
     return (
       <Screen scroll={false} padded>
@@ -124,11 +127,13 @@ export default function SessionDefinitionScreen() {
     );
   }
 
+  const isActive = session.status === 'active';
+
   return (
     <Screen>
       <StackHeader
         title={session.name}
-        subtitle={session.status === 'active' ? 'Active · rotation' : 'Archived'}
+        subtitle={isActive ? 'Active · rotation' : 'Archived'}
       />
 
       <View style={styles.meta}>
@@ -138,7 +143,7 @@ export default function SessionDefinitionScreen() {
       </View>
 
       <PrimaryButton label="Rename" variant="ghost" onPress={handleRename} />
-      {session.status === 'active' ? (
+      {isActive ? (
         <PrimaryButton label="Archive session" variant="ghost" onPress={handleArchive} />
       ) : (
         <>
@@ -158,16 +163,28 @@ export default function SessionDefinitionScreen() {
       )}
 
       <AppText variant="titleMedium">Planned exercises</AppText>
+      <AppText variant="caption" muted>
+        New workouts started from this session copy this lineup.
+      </AppText>
+
+      {isActive ? (
+        <PrimaryButton
+          label="+ Add exercise"
+          variant="ghost"
+          onPress={() => router.push(exercisePickerHref('session-definition', id))}
+        />
+      ) : null}
+
       {planned.length === 0 ? (
         <AppText variant="body" muted>
-          No planned exercises yet. Editing the lineup ships in a follow-up to 3a.
+          No planned exercises yet.
         </AppText>
       ) : null}
-      {planned.map((row) => (
+
+      {planned.map((row, index) => (
         <Card
           key={row.id}
-          title={row.variantName}
-          subtitle={row.exerciseName}
+          title={row.exerciseName}
           headerRight={
             <AppText variant="caption" muted>
               #{row.sortOrder + 1}
@@ -176,6 +193,29 @@ export default function SessionDefinitionScreen() {
           <AppText variant="caption" muted>
             {formatPrescription(row)}
           </AppText>
+          {isActive ? (
+            <View style={styles.rowActions}>
+              <PrimaryButton
+                label="↑"
+                variant="ghost"
+                onPress={() =>
+                  void movePlannedExercise(id, row.id, 'up').then(() => refresh())
+                }
+              />
+              <PrimaryButton
+                label="↓"
+                variant="ghost"
+                onPress={() =>
+                  void movePlannedExercise(id, row.id, 'down').then(() => refresh())
+                }
+              />
+              <PrimaryButton
+                label="Remove"
+                variant="ghost"
+                onPress={() => handleRemovePlanned(row)}
+              />
+            </View>
+          ) : null}
         </Card>
       ))}
     </Screen>
@@ -198,5 +238,10 @@ function formatPrescription(row: SessionExercise): string {
 const styles = StyleSheet.create({
   meta: {
     gap: 4,
+  },
+  rowActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
 });

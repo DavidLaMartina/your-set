@@ -17,7 +17,7 @@ import {
   getWorkoutDeleteSummary,
 } from '@/features/sessions/services/workouts-tab-service';
 import { confirmDestructive } from '@/lib/confirm-delete';
-import { exercisesTabHref, sessionDefinitionHref, variantHistoryHref } from '@/lib/navigation';
+import { exerciseDetailHref, exercisePickerHref, logSetHref, sessionDefinitionHref } from '@/lib/navigation';
 import { colors, spacing } from '@/lib/theme/tokens';
 import type { SessionInstanceView } from '@/types/domain';
 
@@ -99,7 +99,7 @@ export default function SessionDetailScreen() {
   }
 
   const isOpen = session.endedAt == null;
-  const title = session.sessionName ?? 'Ad-hoc session';
+  const title = session.sessionName ?? 'Ad-hoc workout';
 
   return (
     <Screen>
@@ -135,16 +135,15 @@ export default function SessionDetailScreen() {
 
       {session.blocks.length === 0 ? (
         <AppText variant="body" muted>
-          No exercises in this visit yet. Phase 3b will add logging here.
+          No exercises in this workout yet. Add one below.
         </AppText>
       ) : null}
 
       {session.blocks.map((block) => (
         <Card
           key={block.id}
-          title={block.variant.name}
-          subtitle={block.exercise.name}
-          onHeaderPress={() => router.push(variantHistoryHref(block.variant.id))}
+          title={block.exercise.name}
+          onHeaderPress={() => router.push(exerciseDetailHref(block.exerciseId))}
           headerRight={
             <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
           }>
@@ -159,22 +158,29 @@ export default function SessionDetailScreen() {
             ))}
           </View>
           {isOpen ? (
-            <PrimaryButton label="+ Set" variant="ghost" onPress={() => {}} />
+            <PrimaryButton
+              label="+ Set"
+              variant="ghost"
+              onPress={() =>
+                router.push(
+                  logSetHref({
+                    exerciseId: block.exerciseId,
+                    sessionInstanceId: id,
+                    sessionInstanceExerciseId: block.id,
+                  }),
+                )
+              }
+            />
           ) : null}
         </Card>
       ))}
 
       {isOpen ? (
-        <>
-          <PrimaryButton
-            label="+ Exercise to session"
-            variant="ghost"
-            onPress={() => router.push(exercisesTabHref())}
-          />
-          <AppText variant="caption" muted>
-            Phase 3b: pick a variant and log sets into this visit.
-          </AppText>
-        </>
+        <PrimaryButton
+          label="+ Exercise to workout"
+          variant="ghost"
+          onPress={() => router.push(exercisePickerHref('workout', id))}
+        />
       ) : null}
     </Screen>
   );

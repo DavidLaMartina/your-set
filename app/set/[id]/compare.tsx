@@ -8,7 +8,7 @@ import { StackHeader } from '@/components/stack-header';
 import { VideoPlaceholder } from '@/components/video-placeholder';
 import { AppText } from '@/components/ui/app-text';
 import { formatPerformedAt, formatSetLabel } from '@/lib/format';
-import { loadSetWithContext } from '@/features/history/services/variant-history-service';
+import { loadSetWithContext } from '@/features/history/services/exercise-history-service';
 import * as SetRepo from '@/lib/db/repositories/set-repository';
 import { colors, spacing } from '@/lib/theme/tokens';
 import { SET_TYPE_LABELS, type HistorySetRow } from '@/types/domain';
@@ -27,9 +27,7 @@ export default function VideoCompareScreen() {
       setLeft(current);
 
       if (current) {
-        const peers = await SetRepo.listSetsByVariant({
-          exerciseVariantId: current.exerciseVariantId,
-        });
+        const peers = await SetRepo.listSetsByExercise(current.exerciseId);
         const prior = peers.find(
           (s) => s.id !== current.id && s.setType === 'top_set',
         );

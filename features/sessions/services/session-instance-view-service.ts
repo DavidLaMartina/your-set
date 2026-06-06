@@ -1,5 +1,4 @@
 import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
-import * as VariantRepo from '@/lib/db/repositories/exercise-variant-repository';
 import * as SessionRepo from '@/lib/db/repositories/session-repository';
 import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
 import * as SessionInstanceExerciseRepo from '@/lib/db/repositories/session-instance-exercise-repository';
@@ -10,18 +9,16 @@ async function enrichBlock(
   sessionInstanceId: string,
   block: Awaited<ReturnType<typeof SessionInstanceExerciseRepo.listSessionInstanceExercises>>[number],
 ): Promise<SessionExerciseBlock | null> {
-  const variant = await VariantRepo.getVariantById(block.exerciseVariantId);
-  if (!variant) return null;
-  const exercise = await ExerciseRepo.getExerciseById(variant.exerciseId);
+  const exercise = await ExerciseRepo.getExerciseById(block.exerciseId);
   if (!exercise) return null;
 
-  const sets = await SetRepo.listSetsBySessionInstanceAndVariant(
+  const sets = await SetRepo.listSetsBySessionInstanceAndExercise(
     sessionInstanceId,
-    block.exerciseVariantId,
+    block.exerciseId,
   );
   const setsWithVideo: SetWithVideo[] = sets.map((set) => ({ ...set, video: null }));
 
-  return { ...block, variant, exercise, sets: setsWithVideo };
+  return { ...block, exercise, sets: setsWithVideo };
 }
 
 export async function loadSessionInstanceView(

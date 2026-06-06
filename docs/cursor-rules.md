@@ -26,8 +26,8 @@ Conventions for AI-assisted development in this repository. Prefer adding durabl
 
 - Local-first SQLite as source of truth
 - Videos as photo-library references only (metadata in DB)
-- **ExerciseVariant** as first-class (not flattened into exercise name)
-- **Set-centric storage:** `performedAt` required on every set; `workoutId` optional; use `lib/db/queries.ts` patterns
+- **Exercise** is the single loggable unit (implement/muscle/manufacturer FKs); the old variant layer was removed in schema v5
+- **Set-centric storage:** `performedAt` required on every set; `sessionInstanceId` optional; use `lib/db/queries.ts` patterns
 - **`endedAt` never required** — optional End button only sets `workouts.ended_at`
 - Serious, dark, utilitarian UX per [design-system.md](./design-system.md)
 
@@ -75,7 +75,7 @@ Do not import `features/foo` from `features/bar` directly; shared types go in `t
 
 - Direct, neutral, no hype (“Great job!” banned unless user asks)
 - Missing video: use exact message from [product-spec.md](./product-spec.md)
-- Prefer “Set”, “Variant”, “Workout” terminology consistently
+- Prefer “Set”, “Exercise”, “Session”, “Workout” terminology consistently
 
 ## Git / PR — phase review required (important)
 

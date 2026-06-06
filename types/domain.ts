@@ -48,23 +48,54 @@ export const VIDEO_AVAILABILITY = [
 
 export type VideoAvailabilityStatus = (typeof VIDEO_AVAILABILITY)[number];
 
+/** Reference (stock) lookups. */
+export type Implement = {
+  id: string;
+  name: string;
+  sortOrder: number;
+};
+
+export type Muscle = {
+  id: string;
+  name: string;
+  region: string | null;
+  sortOrder: number;
+};
+
+export type Manufacturer = {
+  id: string;
+  name: string;
+};
+
+export const EXERCISE_ORIGINS = ['stock', 'custom'] as const;
+export type ExerciseOrigin = (typeof EXERCISE_ORIGINS)[number];
+
+/**
+ * The single loggable movement (variants were folded into this in schema v5).
+ * implement / primaryMuscle are nullable so users can jot a name on the fly;
+ * anything promoted into the shared library should set both.
+ */
 export type Exercise = {
   id: string;
   name: string;
-  defaultMuscleGroup: string | null;
+  implementId: string | null;
+  primaryMuscleId: string | null;
+  manufacturerId: string | null;
+  /** 'stock' = shared/library row; 'custom' = user-created. */
+  origin: ExerciseOrigin;
+  /** Points at the stock row this was copied/customized from (future cloud library). */
+  catalogId: string | null;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
-export type ExerciseVariant = {
-  id: string;
-  exerciseId: string;
-  name: string;
-  muscleGroup: string | null;
-  equipment: string | null;
-  setupNotes: string | null;
-  createdAt: string;
-  updatedAt: string;
+/** Exercise joined with reference names + secondary muscles for display. */
+export type ExerciseWithMeta = Exercise & {
+  implementName: string | null;
+  primaryMuscleName: string | null;
+  manufacturerName: string | null;
+  secondaryMuscles: Muscle[];
 };
 
 export const SESSION_STATUSES = ['active', 'retired'] as const;
@@ -85,7 +116,7 @@ export type Session = {
 export type SessionExercise = {
   id: string;
   sessionId: string;
-  exerciseVariantId: string;
+  exerciseId: string;
   sortOrder: number;
   targetSets: number | null;
   targetRepsMin: number | null;
@@ -112,7 +143,7 @@ export type SessionInstance = {
 export type SessionInstanceExercise = {
   id: string;
   sessionInstanceId: string;
-  exerciseVariantId: string;
+  exerciseId: string;
   sortOrder: number;
   notes: string | null;
   createdAt: string;
@@ -125,7 +156,7 @@ export type SessionInstanceExercise = {
  */
 export type Set = {
   id: string;
-  exerciseVariantId: string;
+  exerciseId: string;
   performedAt: string;
   sessionInstanceId: string | null;
   sessionInstanceExerciseId: string | null;
@@ -134,7 +165,6 @@ export type Set = {
   weight: number | null;
   reps: number | null;
   rir: number | null;
-  isFailure: boolean;
   setType: SetType;
   notes: string | null;
   createdAt: string;
@@ -157,9 +187,8 @@ export type SetVideo = {
   updatedAt: string;
 };
 
-/** Filters for set-first queries (variant / exercise / date / load). */
+/** Filters for set-first queries (exercise / date / load). */
 export type SetListFilters = {
-  exerciseVariantId?: string;
   exerciseId?: string;
   sessionInstanceId?: string;
   performedAtFrom?: string;
@@ -178,7 +207,6 @@ export type SetWithVideo = Set & {
 };
 
 export type SessionExerciseBlock = SessionInstanceExercise & {
-  variant: ExerciseVariant;
   exercise: Exercise;
   sets: SetWithVideo[];
 };
@@ -189,15 +217,14 @@ export type SessionInstanceView = SessionInstance & {
   blocks: SessionExerciseBlock[];
 };
 
-/** Variant-first history row; performedAt on Set is source of truth for date/time. */
+/** Exercise-first history row; performedAt on Set is source of truth for date/time. */
 export type HistorySetRow = SetWithVideo & {
   /** Definition label when instance is linked; null for set-only logs. */
   sessionName: string | null;
 };
 
-export type VariantHistoryView = {
-  variant: ExerciseVariant;
-  exercise: Exercise;
+export type ExerciseHistoryView = {
+  exercise: ExerciseWithMeta;
   recentSets: HistorySetRow[];
   bestSets: HistorySetRow[];
   comparableSets: HistorySetRow[];

@@ -157,7 +157,7 @@ function WorkoutRow({
   item: WorkoutListItem;
   onDelete: (instanceId: string) => void;
 }) {
-  const { instance, sessionName, setCount, variantCount } = item;
+  const { instance, sessionName, setCount, exerciseCount } = item;
   const isOpen = instance.endedAt == null;
   const title = sessionName ?? 'Ad-hoc workout';
 
@@ -180,8 +180,8 @@ function WorkoutRow({
         }>
         <AppText variant="caption" muted>
           {setCount} set{setCount === 1 ? '' : 's'}
-          {variantCount > 0
-            ? ` · ${variantCount} variant${variantCount === 1 ? '' : 's'}`
+          {exerciseCount > 0
+            ? ` · ${exerciseCount} exercise${exerciseCount === 1 ? '' : 's'}`
             : ''}
           {instance.bodyweight != null ? ` · ${instance.bodyweight} lb` : ''}
         </AppText>

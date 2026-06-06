@@ -2,21 +2,33 @@
  * SQLite row shapes (snake_case). Map to types/domain.ts (camelCase) in repositories.
  */
 
+export type ImplementRow = {
+  id: string;
+  name: string;
+  sort_order: number;
+};
+
+export type MuscleRow = {
+  id: string;
+  name: string;
+  region: string | null;
+  sort_order: number;
+};
+
+export type ManufacturerRow = {
+  id: string;
+  name: string;
+};
+
 export type ExerciseRow = {
   id: string;
   name: string;
-  default_muscle_group: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type ExerciseVariantRow = {
-  id: string;
-  exercise_id: string;
-  name: string;
-  muscle_group: string | null;
-  equipment: string | null;
-  setup_notes: string | null;
+  implement_id: string | null;
+  primary_muscle_id: string | null;
+  manufacturer_id: string | null;
+  origin: string;
+  catalog_id: string | null;
+  notes: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -34,7 +46,7 @@ export type SessionRow = {
 export type SessionExerciseRow = {
   id: string;
   session_id: string;
-  exercise_variant_id: string;
+  exercise_id: string;
   sort_order: number;
   target_sets: number | null;
   target_reps_min: number | null;
@@ -59,7 +71,7 @@ export type SessionInstanceRow = {
 export type SessionInstanceExerciseRow = {
   id: string;
   session_instance_id: string;
-  exercise_variant_id: string;
+  exercise_id: string;
   sort_order: number;
   notes: string | null;
   created_at: string;
@@ -68,17 +80,14 @@ export type SessionInstanceExerciseRow = {
 
 export type SetRow = {
   id: string;
-  exercise_variant_id: string;
+  exercise_id: string;
   performed_at: string;
-  workout_id: string | null;
-  workout_exercise_id: string | null;
   session_instance_id: string | null;
   session_instance_exercise_id: string | null;
   sort_order: number | null;
   weight: number | null;
   reps: number | null;
   rir: number | null;
-  is_failure: number;
   set_type: string;
   notes: string | null;
   created_at: string;

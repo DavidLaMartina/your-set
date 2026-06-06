@@ -1,35 +1,51 @@
 import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
-import * as VariantRepo from '@/lib/db/repositories/exercise-variant-repository';
-import type { Exercise, ExerciseVariant } from '@/types/domain';
+import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
+import type { Exercise, Implement, Manufacturer, Muscle } from '@/types/domain';
 
-export type ExerciseWithVariants = {
+export type ExerciseLibraryRow = {
   exercise: Exercise;
-  variants: ExerciseVariant[];
+  implementName: string | null;
+  primaryMuscleName: string | null;
 };
 
-export async function loadLibrary(): Promise<ExerciseWithVariants[]> {
-  const exercises = await ExerciseRepo.listExercises();
-  return Promise.all(
-    exercises.map(async (exercise) => ({
-      exercise,
-      variants: await VariantRepo.listVariantsByExercise(exercise.id),
-    })),
-  );
+/** Flat list of exercises for the picker, with reference labels resolved. */
+export async function loadLibrary(): Promise<ExerciseLibraryRow[]> {
+  const [exercises, implements_, muscles] = await Promise.all([
+    ExerciseRepo.listExercises(),
+    ReferenceRepo.listImplements(),
+    ReferenceRepo.listMuscles(),
+  ]);
+  const implementById = new Map(implements_.map((i) => [i.id, i.name]));
+  const muscleById = new Map(muscles.map((m) => [m.id, m.name]));
+
+  return exercises.map((exercise) => ({
+    exercise,
+    implementName: exercise.implementId ? implementById.get(exercise.implementId) ?? null : null,
+    primaryMuscleName: exercise.primaryMuscleId
+      ? muscleById.get(exercise.primaryMuscleId) ?? null
+      : null,
+  }));
 }
 
-export async function loadExerciseWithVariants(
-  exerciseId: string,
-): Promise<ExerciseWithVariants | null> {
-  const exercise = await ExerciseRepo.getExerciseById(exerciseId);
-  if (!exercise) return null;
-  const variants = await VariantRepo.listVariantsByExercise(exerciseId);
-  return { exercise, variants };
+export type ExerciseFormOptions = {
+  implements: Implement[];
+  muscles: Muscle[];
+  manufacturers: Manufacturer[];
+};
+
+export async function loadExerciseFormOptions(): Promise<ExerciseFormOptions> {
+  const [implements_, muscles, manufacturers] = await Promise.all([
+    ReferenceRepo.listImplements(),
+    ReferenceRepo.listMuscles(),
+    ReferenceRepo.listManufacturers(),
+  ]);
+  return { implements: implements_, muscles, manufacturers };
 }
 
-export { createExercise, updateExercise, deleteExercise } from '@/lib/db/repositories/exercise-repository';
 export {
-  createVariant,
-  updateVariant,
-  deleteVariant,
-  getVariantById,
-} from '@/lib/db/repositories/exercise-variant-repository';
+  createExercise,
+  updateExercise,
+  deleteExercise,
+  getExerciseById,
+  getExerciseWithMeta,
+} from '@/lib/db/repositories/exercise-repository';

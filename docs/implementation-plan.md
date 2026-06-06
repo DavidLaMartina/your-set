@@ -4,6 +4,8 @@ Phased delivery in small, reviewable PRs. Each phase has clear exit criteria bef
 
 **Master plan (living):** [.cursor/plans/your-set-mvp.md](../.cursor/plans/your-set-mvp.md)
 
+> **Schema v5 update (2026-06-06):** the `exercise`/`variant` split below was collapsed — the **exercise is now the single loggable unit** (with implement/muscle/manufacturer FKs + a secondary-muscle join table). Treat references to `ExerciseVariant`, `exerciseVariantId`, `/variant/[id]/history`, and `/picker/variant` in earlier phases as historical; current shapes live in [data-model.md](./data-model.md), `types/domain.ts`, and `lib/db/migrations/005-exercises-flatten.ts`.
+
 ## Repo baseline (2026-05-31)
 
 | Item | State |
@@ -202,20 +204,50 @@ See [data-model.md](./data-model.md) — `sessions` + `session_instances` + `ses
 
 ---
 
-## Phase 3b — Logging (session + set-only)
+## Phase 3b — Logging (workouts, session lineup, set-only, Sets tab)
 
-**Goal:** Log sets inside an instance or without any session.
+**Goal:** Full set-centric logging — inside a workout, on a session definition, or with no workout at all.
 
-### Tasks
+**Data already supports this:** `sets.session_instance_id` nullable; `session_exercises` for definition lineup; clone to `session_instance_exercises` on workout start (3a).
 
-1. Set-only log from Exercises / variant history
-2. Add variant to session; log sets with live entry
-3. Editable weight/reps; RIR, set type, failure, notes
+### A — Session definition lineup (`session_exercises`)
+
+Users must be able to **add exercises (variants) to a session** so every workout started from that session gets the same planned blocks.
+
+1. `/sessions/[id]` — add variant from library picker; remove; reorder (`sort_order`)
+2. Optional default prescription per planned row (targets from schema)
+3. Copy-on-start behavior stays as today when user taps **Start workout** on Workouts tab
+
+### B — Log inside an open workout (`/session/[id]`)
+
+1. **+ Set** on each instance block — create row with `session_instance_id` + `session_instance_exercise_id`, `performed_at` = now
+2. Form: weight, reps, RIR, set type, notes
+3. **+ Exercise to workout** — add `session_instance_exercise` (ad-hoc block) then log sets
+4. Edit / delete set (delete optional if swipe exists elsewhere)
+
+### C — Set-only logging (no workout)
+
+Two entry points (same underlying insert: `session_instance_id` null):
+
+| Entry | Route | UX |
+|-------|-------|-----|
+| **Variant** | `/variant/[id]/history` | Prominent **+ Log set** above recent/best sections |
+| **Sets tab** | `/(tabs)/sets` (new 4th tab) | All sets `ORDER BY performed_at DESC`; row shows variant, load×reps, time, session label if any |
+
+Sets tab is a **chronological logbook**, not a video feed — optional video badge only; no grid/Instagram layout in 3b.
+
+### D — Navigation
+
+1. Add `app/(tabs)/sets.tsx` + tab bar entry (4 tabs: Sessions, Workouts, Exercises, Sets)
+2. `lib/navigation.ts` — `setsTabHref()`
 
 ### Acceptance
 
-- [ ] Full logging path works for template-backed instances
-- [ ] `endedAt` still optional
+- [ ] Push A lineup editable; new workout inherits planned variants
+- [ ] Open workout: log and edit sets on blocks
+- [ ] Log set from variant history without starting a workout
+- [ ] Sets tab lists recent sets globally; tap opens set detail
+- [ ] `endedAt` on instance still optional
 
 ---
 
