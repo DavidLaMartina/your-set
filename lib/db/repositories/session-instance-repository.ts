@@ -53,6 +53,15 @@ export async function createSessionInstance(
 
 export async function deleteSessionInstance(id: string): Promise<void> {
   const db = await getDb();
+  // Unlink sets first. Relying on the two ON DELETE SET NULL cascades
+  // (session_instance_id from this row, session_instance_exercise_id from the
+  // cascade-deleted blocks) can transiently violate the sets CHECK constraint
+  // depending on the order SQLite applies them. Nulling both in one update
+  // keeps the sets in the log, unlinked, and avoids that.
+  await db.runAsync(
+    'UPDATE sets SET session_instance_id = NULL, session_instance_exercise_id = NULL WHERE session_instance_id = ?',
+    id,
+  );
   await db.runAsync('DELETE FROM session_instances WHERE id = ?', id);
 }
 
