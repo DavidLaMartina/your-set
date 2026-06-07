@@ -1,6 +1,6 @@
 import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
 import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
-import type { Exercise, Implement, Manufacturer, Muscle } from '@/types/domain';
+import type { Exercise, Implement, Muscle } from '@/types/domain';
 
 export type ExerciseLibraryRow = {
   exercise: Exercise;
@@ -30,16 +30,14 @@ export async function loadLibrary(): Promise<ExerciseLibraryRow[]> {
 export type ExerciseFormOptions = {
   implements: Implement[];
   muscles: Muscle[];
-  manufacturers: Manufacturer[];
 };
 
 export async function loadExerciseFormOptions(): Promise<ExerciseFormOptions> {
-  const [implements_, muscles, manufacturers] = await Promise.all([
+  const [implements_, muscles] = await Promise.all([
     ReferenceRepo.listImplements(),
     ReferenceRepo.listMuscles(),
-    ReferenceRepo.listManufacturers(),
   ]);
-  return { implements: implements_, muscles, manufacturers };
+  return { implements: implements_, muscles };
 }
 
 export {

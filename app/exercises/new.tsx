@@ -25,7 +25,6 @@ export default function ExerciseFormScreen() {
   const [name, setName] = useState('');
   const [implementId, setImplementId] = useState<string | null>(null);
   const [primaryMuscleId, setPrimaryMuscleId] = useState<string | null>(null);
-  const [manufacturerId, setManufacturerId] = useState<string | null>(null);
   const [secondaryMuscleIds, setSecondaryMuscleIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,7 +40,6 @@ export default function ExerciseFormScreen() {
           setName(existing.name);
           setImplementId(existing.implementId);
           setPrimaryMuscleId(existing.primaryMuscleId);
-          setManufacturerId(existing.manufacturerId);
           setSecondaryMuscleIds(existing.secondaryMuscles.map((m) => m.id));
         }
       }
@@ -75,7 +73,6 @@ export default function ExerciseFormScreen() {
           name: trimmed,
           implementId,
           primaryMuscleId,
-          manufacturerId,
           secondaryMuscleIds: secondaries,
         });
         router.replace(exerciseDetailHref(exerciseId));
@@ -84,7 +81,6 @@ export default function ExerciseFormScreen() {
           name: trimmed,
           implementId,
           primaryMuscleId,
-          manufacturerId,
           secondaryMuscleIds: secondaries,
         });
         router.replace(exerciseDetailHref(exercise.id));
@@ -137,14 +133,6 @@ export default function ExerciseFormScreen() {
           .map((m) => ({ id: m.id, label: m.name }))}
         selectedIds={secondaryMuscleIds}
         onToggle={toggleSecondary}
-      />
-
-      <ChipGroup
-        label="Manufacturer (optional)"
-        options={options.manufacturers.map((m) => ({ id: m.id, label: m.name }))}
-        selectedId={manufacturerId}
-        onSelect={(id) => setManufacturerId(id)}
-        allowNone
       />
 
       {error ? (

@@ -9,7 +9,6 @@ export type CreateExerciseInput = {
   name: string;
   implementId?: string | null;
   primaryMuscleId?: string | null;
-  manufacturerId?: string | null;
   origin?: ExerciseOrigin;
   catalogId?: string | null;
   notes?: string | null;
@@ -20,7 +19,6 @@ export type UpdateExerciseInput = {
   name?: string;
   implementId?: string | null;
   primaryMuscleId?: string | null;
-  manufacturerId?: string | null;
   notes?: string | null;
   secondaryMuscleIds?: string[];
 };
@@ -56,17 +54,14 @@ export async function getExerciseWithMeta(id: string): Promise<ExerciseWithMeta 
     ExerciseRow & {
       implement_name: string | null;
       muscle_name: string | null;
-      manufacturer_name: string | null;
     }
   >(
     `SELECT e.*,
             i.name AS implement_name,
-            m.name AS muscle_name,
-            mf.name AS manufacturer_name
+            m.name AS muscle_name
      FROM exercises e
      LEFT JOIN implements i ON i.id = e.implement_id
      LEFT JOIN muscles m ON m.id = e.primary_muscle_id
-     LEFT JOIN manufacturers mf ON mf.id = e.manufacturer_id
      WHERE e.id = ?`,
     id,
   );
@@ -77,7 +72,6 @@ export async function getExerciseWithMeta(id: string): Promise<ExerciseWithMeta 
     ...mapExerciseRow(row),
     implementName: row.implement_name,
     primaryMuscleName: row.muscle_name,
-    manufacturerName: row.manufacturer_name,
     secondaryMuscles,
   };
 }
@@ -101,13 +95,12 @@ export async function createExercise(input: CreateExerciseInput): Promise<Exerci
   const id = newId();
   await db.runAsync(
     `INSERT INTO exercises
-      (id, name, implement_id, primary_muscle_id, manufacturer_id, origin, catalog_id, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, name, implement_id, primary_muscle_id, origin, catalog_id, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     input.name.trim(),
     input.implementId ?? null,
     input.primaryMuscleId ?? null,
-    input.manufacturerId ?? null,
     input.origin ?? 'custom',
     input.catalogId ?? null,
     input.notes ?? null,
@@ -131,12 +124,11 @@ export async function updateExercise(
   const now = isoNow();
   await db.runAsync(
     `UPDATE exercises
-     SET name = ?, implement_id = ?, primary_muscle_id = ?, manufacturer_id = ?, notes = ?, updated_at = ?
+     SET name = ?, implement_id = ?, primary_muscle_id = ?, notes = ?, updated_at = ?
      WHERE id = ?`,
     input.name?.trim() ?? existing.name,
     input.implementId !== undefined ? input.implementId : existing.implementId,
     input.primaryMuscleId !== undefined ? input.primaryMuscleId : existing.primaryMuscleId,
-    input.manufacturerId !== undefined ? input.manufacturerId : existing.manufacturerId,
     input.notes !== undefined ? input.notes : existing.notes,
     now,
     id,

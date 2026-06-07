@@ -71,6 +71,9 @@ export default function SetDetailScreen() {
         }
       />
       <Metadata label="Set type" value={SET_TYPE_LABELS[set.setType]} />
+      {set.manufacturerName ? (
+        <Metadata label="Manufacturer" value={set.manufacturerName} />
+      ) : null}
       {set.rir != null ? <Metadata label="RIR" value={String(set.rir)} /> : null}
       {set.notes ? <Metadata label="Notes" value={set.notes} /> : null}
 

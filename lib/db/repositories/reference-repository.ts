@@ -28,6 +28,15 @@ export async function listManufacturers(): Promise<Manufacturer[]> {
   return rows.map(mapManufacturerRow);
 }
 
+export async function getManufacturerById(id: string): Promise<Manufacturer | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<ManufacturerRow>(
+    'SELECT * FROM manufacturers WHERE id = ?',
+    id,
+  );
+  return row ? mapManufacturerRow(row) : null;
+}
+
 /** Find an existing manufacturer by name (case-insensitive) or create one. */
 export async function ensureManufacturer(name: string): Promise<Manufacturer> {
   const trimmed = name.trim();

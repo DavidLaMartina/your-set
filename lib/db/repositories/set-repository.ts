@@ -16,6 +16,7 @@ export type CreateSetInput = {
   reps?: number | null;
   rir?: number | null;
   setType?: SetType;
+  manufacturerId?: string | null;
   notes?: string | null;
 };
 
@@ -123,6 +124,7 @@ export async function createSet(input: CreateSetInput): Promise<Set> {
     reps: input.reps ?? null,
     rir: input.rir ?? null,
     setType: input.setType ?? 'straight',
+    manufacturerId: input.manufacturerId ?? null,
     notes: input.notes ?? null,
     createdAt: isoNow(),
     updatedAt: isoNow(),
@@ -137,8 +139,8 @@ export async function createSet(input: CreateSetInput): Promise<Set> {
     `INSERT INTO sets (
       id, exercise_id, performed_at,
       session_instance_id, session_instance_exercise_id,
-      sort_order, weight, reps, rir, set_type, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sort_order, weight, reps, rir, set_type, manufacturer_id, notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     draft.id,
     draft.exerciseId,
     draft.performedAt,
@@ -149,6 +151,7 @@ export async function createSet(input: CreateSetInput): Promise<Set> {
     draft.reps,
     draft.rir,
     draft.setType,
+    draft.manufacturerId,
     draft.notes,
     draft.createdAt,
     draft.updatedAt,
@@ -176,7 +179,7 @@ export async function updateSet(id: string, input: UpdateSetInput): Promise<Set 
     `UPDATE sets SET
       exercise_id = ?, performed_at = ?,
       session_instance_id = ?, session_instance_exercise_id = ?,
-      sort_order = ?, weight = ?, reps = ?, rir = ?, set_type = ?, notes = ?, updated_at = ?
+      sort_order = ?, weight = ?, reps = ?, rir = ?, set_type = ?, manufacturer_id = ?, notes = ?, updated_at = ?
      WHERE id = ?`,
     next.exerciseId,
     next.performedAt,
@@ -187,6 +190,7 @@ export async function updateSet(id: string, input: UpdateSetInput): Promise<Set 
     next.reps,
     next.rir,
     next.setType,
+    next.manufacturerId,
     next.notes,
     next.updatedAt,
     id,
@@ -198,4 +202,19 @@ export async function updateSet(id: string, input: UpdateSetInput): Promise<Set 
 export async function deleteSet(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM sets WHERE id = ?', id);
+}
+
+/** Most recent non-null manufacturer logged for this exercise (for form default). */
+export async function getLastManufacturerIdForExercise(
+  exerciseId: string,
+): Promise<string | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ manufacturer_id: string | null }>(
+    `SELECT manufacturer_id FROM sets
+     WHERE exercise_id = ? AND manufacturer_id IS NOT NULL
+     ORDER BY performed_at DESC
+     LIMIT 1`,
+    exerciseId,
+  );
+  return row?.manufacturer_id ?? null;
 }

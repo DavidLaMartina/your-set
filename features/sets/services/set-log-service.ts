@@ -11,6 +11,7 @@ export type LogSetInput = {
   reps?: number | null;
   rir?: number | null;
   setType?: SetType;
+  manufacturerId?: string | null;
   notes?: string | null;
   performedAt?: string;
   sortOrder?: number | null;
@@ -21,15 +22,17 @@ export type LogSetFormValues = {
   reps: string;
   rir: string;
   setType: SetType;
+  manufacturerId: string | null;
   notes: string;
 };
 
-export function emptyLogSetForm(): LogSetFormValues {
+export function emptyLogSetForm(manufacturerId: string | null = null): LogSetFormValues {
   return {
     weight: '',
     reps: '',
     rir: '',
     setType: 'straight',
+    manufacturerId,
     notes: '',
   };
 }
@@ -40,6 +43,7 @@ export function logSetFormFromSet(set: Set): LogSetFormValues {
     reps: set.reps != null ? String(set.reps) : '',
     rir: set.rir != null ? String(set.rir) : '',
     setType: set.setType,
+    manufacturerId: set.manufacturerId,
     notes: set.notes ?? '',
   };
 }
@@ -91,6 +95,7 @@ export async function createLoggedSet(input: LogSetInput): Promise<Set> {
     reps: input.reps ?? null,
     rir: input.rir ?? null,
     setType: input.setType ?? 'straight',
+    manufacturerId: input.manufacturerId ?? null,
     notes: input.notes ?? null,
   });
 }
@@ -109,6 +114,7 @@ export async function updateLoggedSet(
     reps: input.reps,
     rir: input.rir,
     setType: input.setType,
+    manufacturerId: input.manufacturerId,
     notes: input.notes,
   });
 }
@@ -123,6 +129,7 @@ export function formValuesToLogInput(
     reps: parseOptionalInt(form.reps),
     rir: parseOptionalInt(form.rir),
     setType: form.setType,
+    manufacturerId: form.manufacturerId,
     notes: form.notes.trim() || null,
   };
 }
@@ -146,4 +153,11 @@ export async function ensureWorkoutBlock(
     sortOrder,
   });
   return block.id;
+}
+
+/** Default manufacturer for a new set: last logged for this exercise. */
+export async function defaultManufacturerForExercise(
+  exerciseId: string,
+): Promise<string | null> {
+  return SetRepo.getLastManufacturerIdForExercise(exerciseId);
 }

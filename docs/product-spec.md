@@ -38,7 +38,7 @@ Someone who already knows how to train. They want fast logging, video attachment
 | Auth | None |
 | Video | References to photo library / camera roll; metadata in DB |
 | Video missing | Graceful state if user deletes asset or permissions change |
-| Exercises | Create/manage exercises (implement, muscle, manufacturer) |
+| Exercises | Create/manage exercises (implement, muscle); manufacturer per set at log time |
 | Workouts | Start, log sets, end session |
 | Sets | Weight, reps, RIR, set type, notes |
 | History | Per-exercise history, comparable sets, filters |
@@ -58,7 +58,7 @@ Someone who already knows how to train. They want fast logging, video attachment
 
 ## Core domain concept: Exercise
 
-**Exercise** = the specific movement you log against (e.g. "Smith high incline press", "Neutral-grip cable row"). It carries an **implement** (barbell, dumbbell, machine, cable, …), a **primary muscle**, optional **secondary muscles**, and an optional **manufacturer** (machine variations) — all foreign keys to seeded reference tables.
+**Exercise** = the specific movement you log against (e.g. "Machine incline press", "Neutral-grip cable row"). It carries an **implement** (barbell, dumbbell, machine, cable, …), a **primary muscle**, and optional **secondary muscles**. **Manufacturer** (equipment brand) is recorded on each **set** when logging — same exercise, different machine that day.
 
 Serious lifters compare **like-with-like**, so setup specifics live on the exercise itself rather than as a separate "variant" layer (the v4 exercise/variant split was collapsed in schema v5). `origin` / `catalogId` are the seam for a future shared/cloud exercise library; user-created exercises live in the same table tagged `custom`.
 
@@ -76,7 +76,7 @@ Users may only ever log sets (no session). Users may use sessions and optionally
 
 ## User flows (MVP)
 
-1. **Manage library** — Create an exercise (name + implement + primary muscle, optional secondary muscles / manufacturer).
+1. **Manage library** — Create an exercise (name + implement + primary muscle, optional secondary muscles).
 2. **Define session (rotation slot)** — Add planned exercises to a **session definition** (`session_exercises`) so each **workout** started from that session gets the same lineup (Phase 3b UI).
 3. **Log a set** — Always: exercise + `performedAt` + weight/reps/etc. **Workout optional** (`session_instance_id` null = set-only).
 4. **Start workout (optional)** — From Workouts tab: from session definition (clones lineup) or ad-hoc; bodyweight optional.
@@ -118,7 +118,7 @@ Users may only ever log sets (no session). Users may use sessions and optionally
 
 ### 4. Exercise Detail / History
 
-- Exercise name + implement · muscle context (secondary muscles, manufacturer)
+- Exercise name + implement · muscle context; per-set manufacturer on history rows when set
 - Prominent **+ Log set**
 - Recent sets timeline
 - Best sets (e.g. top weight for rep range)
@@ -141,7 +141,8 @@ Users may only ever log sets (no session). Users may use sessions and optionally
 
 ### 7. Exercise Manager (stack)
 
-- Create/edit exercise: name + implement + primary muscle + secondary muscles + manufacturer
+- Create/edit exercise: name + implement + primary muscle + secondary muscles
+- Log/edit set: optional manufacturer (defaults to last used for that exercise)
 - Delete exercise (removes its sets)
 
 ### 8. Missing Video state

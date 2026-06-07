@@ -25,7 +25,6 @@ export type ExerciseRow = {
   name: string;
   implement_id: string | null;
   primary_muscle_id: string | null;
-  manufacturer_id: string | null;
   origin: string;
   catalog_id: string | null;
   notes: string | null;
@@ -89,6 +88,7 @@ export type SetRow = {
   reps: number | null;
   rir: number | null;
   set_type: string;
+  manufacturer_id: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

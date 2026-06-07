@@ -1,4 +1,5 @@
 import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
+import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
 import * as SessionRepo from '@/lib/db/repositories/session-repository';
 import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
 import * as SetRepo from '@/lib/db/repositories/set-repository';
@@ -6,6 +7,7 @@ import type { ExerciseHistoryView, HistorySetRow, SetWithVideo } from '@/types/d
 
 async function enrichSetRow(
   set: Awaited<ReturnType<typeof SetRepo.getSetById>>,
+  manufacturerNames: Map<string, string>,
 ): Promise<HistorySetRow | null> {
   if (!set) return null;
   let sessionName: string | null = null;
@@ -19,16 +21,24 @@ async function enrichSetRow(
     }
   }
   const row: SetWithVideo = { ...set, video: null };
-  return { ...row, sessionName };
+  const manufacturerName = set.manufacturerId
+    ? manufacturerNames.get(set.manufacturerId) ?? null
+    : null;
+  return { ...row, sessionName, manufacturerName };
 }
 
 export async function loadExerciseHistory(exerciseId: string): Promise<ExerciseHistoryView | null> {
   const exercise = await ExerciseRepo.getExerciseWithMeta(exerciseId);
   if (!exercise) return null;
 
-  const sets = await SetRepo.listSetsByExercise(exerciseId);
+  const [sets, manufacturers] = await Promise.all([
+    SetRepo.listSetsByExercise(exerciseId),
+    ReferenceRepo.listManufacturers(),
+  ]);
+  const manufacturerNames = new Map(manufacturers.map((m) => [m.id, m.name]));
+
   const recentSets = (
-    await Promise.all(sets.map((s) => enrichSetRow(s)))
+    await Promise.all(sets.map((s) => enrichSetRow(s, manufacturerNames)))
   ).filter((r): r is HistorySetRow => r != null);
 
   const bestSets = [...recentSets]
@@ -41,6 +51,10 @@ export async function loadExerciseHistory(exerciseId: string): Promise<ExerciseH
 }
 
 export async function loadSetWithContext(setId: string): Promise<HistorySetRow | null> {
-  const set = await SetRepo.getSetById(setId);
-  return enrichSetRow(set);
+  const [set, manufacturers] = await Promise.all([
+    SetRepo.getSetById(setId),
+    ReferenceRepo.listManufacturers(),
+  ]);
+  const manufacturerNames = new Map(manufacturers.map((m) => [m.id, m.name]));
+  return enrichSetRow(set, manufacturerNames);
 }

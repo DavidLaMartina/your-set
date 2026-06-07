@@ -80,7 +80,6 @@ export type Exercise = {
   name: string;
   implementId: string | null;
   primaryMuscleId: string | null;
-  manufacturerId: string | null;
   /** 'stock' = shared/library row; 'custom' = user-created. */
   origin: ExerciseOrigin;
   /** Points at the stock row this was copied/customized from (future cloud library). */
@@ -94,7 +93,6 @@ export type Exercise = {
 export type ExerciseWithMeta = Exercise & {
   implementName: string | null;
   primaryMuscleName: string | null;
-  manufacturerName: string | null;
   secondaryMuscles: Muscle[];
 };
 
@@ -166,6 +164,8 @@ export type Set = {
   reps: number | null;
   rir: number | null;
   setType: SetType;
+  /** Equipment brand for this log (machine, barbell, cable stack, etc.). */
+  manufacturerId: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -221,6 +221,7 @@ export type SessionInstanceView = SessionInstance & {
 export type HistorySetRow = SetWithVideo & {
   /** Definition label when instance is linked; null for set-only logs. */
   sessionName: string | null;
+  manufacturerName: string | null;
 };
 
 export type ExerciseHistoryView = {

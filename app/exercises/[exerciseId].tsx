@@ -91,11 +91,6 @@ export default function ExerciseDetailScreen() {
           Also hits {exercise.secondaryMuscles.map((m) => m.name).join(', ')}
         </AppText>
       ) : null}
-      {exercise.manufacturerName ? (
-        <AppText variant="caption" muted>
-          {exercise.manufacturerName}
-        </AppText>
-      ) : null}
       {exercise.notes ? (
         <AppText variant="caption" muted>
           {exercise.notes}
@@ -168,6 +163,7 @@ function HistorySetCard({ row }: { row: HistorySetRow }) {
             ? ` · ${row.sessionName}`
             : ' · Session'
           : ' · No workout'}
+        {row.manufacturerName ? ` · ${row.manufacturerName}` : ''}
         {row.rir != null ? ` · RIR ${row.rir}` : ''}
       </AppText>
     </Card>

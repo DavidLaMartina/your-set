@@ -4,14 +4,15 @@ import { DenseInput } from '@/components/dense-input';
 import { AppText } from '@/components/ui/app-text';
 import { colors, radius, spacing, typography } from '@/lib/theme/tokens';
 import type { LogSetFormValues } from '@/features/sets/services/set-log-service';
-import { SET_TYPES, SET_TYPE_LABELS } from '@/types/domain';
+import { SET_TYPES, SET_TYPE_LABELS, type Manufacturer } from '@/types/domain';
 
 type Props = {
   values: LogSetFormValues;
   onChange: (next: LogSetFormValues) => void;
+  manufacturers: Manufacturer[];
 };
 
-export function LogSetForm({ values, onChange }: Props) {
+export function LogSetForm({ values, onChange, manufacturers }: Props) {
   const patch = (partial: Partial<LogSetFormValues>) => onChange({ ...values, ...partial });
 
   return (
@@ -54,6 +55,43 @@ export function LogSetForm({ values, onChange }: Props) {
           </Pressable>
         ))}
       </View>
+
+      {manufacturers.length > 0 ? (
+        <>
+          <AppText variant="caption" muted>
+            Manufacturer (optional)
+          </AppText>
+          <View style={styles.chips}>
+            <Pressable
+              onPress={() => patch({ manufacturerId: null })}
+              style={[styles.chip, values.manufacturerId == null && styles.chipActive]}>
+              <AppText
+                variant="caption"
+                color={
+                  values.manufacturerId == null ? colors.text.inverse : colors.text.secondary
+                }>
+                None
+              </AppText>
+            </Pressable>
+            {manufacturers.map((mfr) => (
+              <Pressable
+                key={mfr.id}
+                onPress={() => patch({ manufacturerId: mfr.id })}
+                style={[styles.chip, values.manufacturerId === mfr.id && styles.chipActive]}>
+                <AppText
+                  variant="caption"
+                  color={
+                    values.manufacturerId === mfr.id
+                      ? colors.text.inverse
+                      : colors.text.secondary
+                  }>
+                  {mfr.name}
+                </AppText>
+              </Pressable>
+            ))}
+          </View>
+        </>
+      ) : null}
 
       <AppText variant="caption" muted>
         Notes

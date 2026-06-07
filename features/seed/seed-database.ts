@@ -41,7 +41,6 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     name: 'Leg press',
     implementId: 'imp-machine',
     primaryMuscleId: 'mus-quads',
-    manufacturerId: 'mfr-hammer-strength',
     secondaryMuscleIds: ['mus-glutes'],
   });
 

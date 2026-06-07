@@ -79,6 +79,7 @@ function RecentSetCard({ row }: { row: RecentSetRow }) {
         <AppText variant="body">{row.exerciseName}</AppText>
         <AppText variant="caption" muted>
           {row.sessionName ? row.sessionName : 'No workout'}
+          {row.manufacturerName ? ` · ${row.manufacturerName}` : ''}
           {' · '}
           {formatPerformedAt(row.performedAt)}
           {row.rir != null ? ` · RIR ${row.rir}` : ''}

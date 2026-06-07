@@ -129,7 +129,6 @@ The **single loggable movement** (e.g. “Smith high incline press”). Sets log
 | name | name | TEXT | Required |
 | implementId | implement_id | TEXT FK | → implements.id; nullable |
 | primaryMuscleId | primary_muscle_id | TEXT FK | → muscles.id; nullable |
-| manufacturerId | manufacturer_id | TEXT FK | → manufacturers.id; nullable |
 | origin | origin | TEXT | `stock` \| `custom`; seam for shared library |
 | catalogId | catalog_id | TEXT | nullable; stock row a custom copy derives from |
 | notes | notes | TEXT | nullable (setup notes) |
@@ -207,12 +206,13 @@ Table: `session_instance_exercises`.
 | Field | Type | Notes |
 |-------|------|-------|
 | exerciseId | TEXT FK | → exercises (required) |
+| manufacturerId | TEXT FK | → manufacturers.id; nullable — equipment brand **for this log** (machine, barbell, cable stack, etc.) |
 | sessionInstanceId | TEXT FK | Nullable |
 | sessionInstanceExerciseId | TEXT FK | Nullable; requires instance id |
 | performedAt | TEXT | **Canonical time** |
 | … | | weight, reps, rir, set_type, etc. |
 
-As of v5, `sets.exercise_id` references `exercises` directly (no variant layer); `session_instance_id` / `session_instance_exercise_id` remain the only session links.
+As of v5, `sets.exercise_id` references `exercises` directly (no variant layer). As of v6, `manufacturer_id` lives on the set, not the exercise — one "machine incline press" exercise, different brands per day.
 
 ### SetVideo
 
@@ -230,8 +230,9 @@ After v2, `lib/db/migrate-data-v2.ts` groups legacy instance names into `session
 
 | 4 | `lib/db/migrations/004-drop-set-failure-flag.ts` | Drops `is_failure` from `sets` |
 | 5 | `lib/db/migrations/005-exercises-flatten.ts` | Collapses `exercise_variants` into `exercises`; adds `implements` / `muscles` / `manufacturers` (seeded) + `exercise_secondary_muscles`; remaps `sets` / session FKs to `exercise_id`. Pre-release data is dropped and reseeded. |
+| 6 | `lib/db/migrate-data-v6.ts` (`applyMigration006`) | Moves `manufacturer_id` from `exercises` to `sets`; idempotent if a prior partial run left `*_v6` temp tables |
 
-`schema_migrations.version` tracks applied versions. Current target: **5** (`SCHEMA_VERSION` in `lib/db/client.ts`).
+`schema_migrations.version` tracks applied versions. Current target: **6** (`SCHEMA_VERSION` in `lib/db/client.ts`).
 
 ## TypeScript mapping
 
