@@ -24,6 +24,11 @@ export function setDetailHref(setId: string): Href {
   return `/set/${setId}` as Href;
 }
 
+/** Open the set screen directly in edit mode. */
+export function editSetHref(setId: string): Href {
+  return `/set/${setId}?edit=1` as Href;
+}
+
 export function setCompareHref(setId: string): Href {
   return `/set/${setId}/compare` as Href;
 }
@@ -49,11 +54,11 @@ export type LogSetParams = {
   exerciseId: string;
   sessionInstanceId?: string;
   sessionInstanceExerciseId?: string;
-  setId?: string;
   /** After save, navigate here instead of set detail (set-only logs). */
   returnTo?: 'sets';
 };
 
+/** Create a new set. Editing an existing set happens on the set screen itself. */
 export function logSetHref(params: LogSetParams): Href {
   const q = new URLSearchParams();
   q.set('exerciseId', params.exerciseId);
@@ -61,7 +66,6 @@ export function logSetHref(params: LogSetParams): Href {
   if (params.sessionInstanceExerciseId) {
     q.set('sessionInstanceExerciseId', params.sessionInstanceExerciseId);
   }
-  if (params.setId) q.set('setId', params.setId);
   if (params.returnTo) q.set('returnTo', params.returnTo);
   return `/set/log?${q.toString()}` as Href;
 }

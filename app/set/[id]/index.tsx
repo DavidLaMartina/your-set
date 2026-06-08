@@ -2,30 +2,42 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
-import { MissingVideo } from '@/components/missing-video';
+import { LogSetForm } from '@/components/log-set-form';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { StackHeader } from '@/components/stack-header';
 import { SetTypeBadge } from '@/components/set-type-badge';
-import { SetVideoPlayer } from '@/components/set-video-player';
-import { VideoPlaceholder } from '@/components/video-placeholder';
+import { SetVideoSection } from '@/components/set-video-section';
 import { AppText } from '@/components/ui/app-text';
 import { formatPerformedAt, formatSetLabel } from '@/lib/format';
 import { loadSetWithContext } from '@/features/history/services/exercise-history-service';
+import {
+  formValuesToLogInput,
+  logSetFormFromSet,
+  updateLoggedSet,
+  type LogSetFormValues,
+} from '@/features/sets/services/set-log-service';
 import {
   attachVideoToSet,
   removeVideoFromSet,
   resolveAndPersistSetVideo,
 } from '@/features/video/services/set-video-service';
-import { logSetHref, setCompareHref } from '@/lib/navigation';
+import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
+import { setCompareHref } from '@/lib/navigation';
 import { spacing } from '@/lib/theme/tokens';
-import type { HistorySetRow, SetVideo } from '@/types/domain';
+import type { HistorySetRow, Manufacturer, SetVideo } from '@/types/domain';
 import { SET_TYPE_LABELS } from '@/types/domain';
 
+type Mode = 'view' | 'edit';
+
 export default function SetDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
   const [set, setSet] = useState<HistorySetRow | null>(null);
+  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const [form, setForm] = useState<LogSetFormValues | null>(null);
+  const [mode, setMode] = useState<Mode>(edit === '1' ? 'edit' : 'view');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const applyVideo = useCallback((video: SetVideo | null) => {
@@ -37,9 +49,11 @@ export default function SetDetailScreen() {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const row = await loadSetWithContext(id);
+      const [row, mfrs] = await Promise.all([loadSetWithContext(id), ReferenceRepo.listManufacturers()]);
       if (cancelled) return;
       setSet(row);
+      setManufacturers(mfrs);
+      if (row) setForm(logSetFormFromSet(row));
       setLoading(false);
       if (row?.video) {
         const refreshed = await resolveAndPersistSetVideo(id);
@@ -69,25 +83,62 @@ export default function SetDetailScreen() {
     }
   }, [id, busy, applyVideo]);
 
-  const handleRemove = useCallback(() => {
+  const handleRemoveVideo = useCallback(() => {
     if (!id || busy) return;
-    Alert.alert('Remove video reference?', 'This removes the link only; your video stays in Photos.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          setBusy(true);
-          try {
-            await removeVideoFromSet(id);
-            applyVideo(null);
-          } finally {
-            setBusy(false);
-          }
+    Alert.alert(
+      'Remove video reference?',
+      'This removes the link only; your video stays in Photos.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await removeVideoFromSet(id);
+              applyVideo(null);
+            } finally {
+              setBusy(false);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   }, [id, busy, applyVideo]);
+
+  const handleSave = useCallback(async () => {
+    if (!id || !set || !form || saving) return;
+    const weight = form.weight.trim();
+    const reps = form.reps.trim();
+    if (!weight && !reps) {
+      Alert.alert('Add weight or reps', 'Enter at least one value to save this set.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const input = formValuesToLogInput(form, {
+        exerciseId: set.exerciseId,
+        sessionInstanceId: set.sessionInstanceId,
+        sessionInstanceExerciseId: set.sessionInstanceExerciseId,
+      });
+      await updateLoggedSet(id, input);
+      const refreshed = await loadSetWithContext(id);
+      if (refreshed) {
+        setSet(refreshed);
+        setForm(logSetFormFromSet(refreshed));
+      }
+      setMode('view');
+    } finally {
+      setSaving(false);
+    }
+  }, [id, set, form, saving]);
+
+  const cancelEdit = useCallback(() => {
+    if (set) setForm(logSetFormFromSet(set));
+    setMode('view');
+  }, [set]);
 
   if (loading) {
     return (
@@ -109,10 +160,31 @@ export default function SetDetailScreen() {
     );
   }
 
-  const video = set.video;
-  const status = video?.availabilityStatus ?? 'none';
-  const canPlay = status === 'available' && !!video?.uri;
-  const isMissing = status === 'missing' || status === 'permissionDenied';
+  const videoSection = (
+    <SetVideoSection
+      video={set.video}
+      busy={busy}
+      onAttach={handleAttach}
+      onRemove={handleRemoveVideo}
+    />
+  );
+
+  if (mode === 'edit' && form) {
+    return (
+      <Screen>
+        <StackHeader title="Edit set" subtitle={set.sessionName ?? undefined} />
+        <LogSetForm values={form} onChange={setForm} manufacturers={manufacturers} />
+        {videoSection}
+        <View style={styles.actions}>
+          <PrimaryButton
+            label={saving ? 'Saving…' : 'Save changes'}
+            onPress={() => void handleSave()}
+          />
+          <PrimaryButton label="Cancel" variant="ghost" onPress={cancelEdit} />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -125,9 +197,7 @@ export default function SetDetailScreen() {
       <Metadata label="Performed" value={formatPerformedAt(set.performedAt)} />
       <Metadata
         label="Session"
-        value={
-          set.sessionInstanceId ? set.sessionName ?? 'In session' : 'None (set-only log)'
-        }
+        value={set.sessionInstanceId ? set.sessionName ?? 'In session' : 'None (set-only log)'}
       />
       <Metadata label="Set type" value={SET_TYPE_LABELS[set.setType]} />
       {set.manufacturerName ? (
@@ -136,49 +206,9 @@ export default function SetDetailScreen() {
       {set.rir != null ? <Metadata label="RIR" value={String(set.rir)} /> : null}
       {set.notes ? <Metadata label="Notes" value={set.notes} /> : null}
 
-      <AppText variant="titleMedium">Video</AppText>
-      {canPlay ? (
-        <>
-          <SetVideoPlayer
-            uri={video!.uri!}
-            width={video!.width}
-            height={video!.height}
-            thumbnailUri={video!.thumbnailUri}
-          />
-          <PrimaryButton
-            label={busy ? 'Working…' : 'Replace video'}
-            variant="ghost"
-            onPress={handleAttach}
-          />
-          <PrimaryButton label="Remove video reference" variant="danger" onPress={handleRemove} />
-        </>
-      ) : isMissing ? (
-        <MissingVideo onRelink={handleAttach} onRemove={handleRemove} />
-      ) : (
-        <>
-          <VideoPlaceholder status="none" onPress={handleAttach} />
-          <PrimaryButton
-            label={busy ? 'Opening…' : 'Attach video'}
-            onPress={handleAttach}
-          />
-        </>
-      )}
+      {videoSection}
 
-      <PrimaryButton
-        label="Edit set"
-        variant="ghost"
-        onPress={() =>
-          router.push(
-            logSetHref({
-              exerciseId: set.exerciseId,
-              sessionInstanceId: set.sessionInstanceId ?? undefined,
-              sessionInstanceExerciseId: set.sessionInstanceExerciseId ?? undefined,
-              setId: set.id,
-            }),
-          )
-        }
-      />
-
+      <PrimaryButton label="Edit set" variant="ghost" onPress={() => setMode('edit')} />
       <PrimaryButton
         label="Compare with prior set"
         onPress={() => router.push(setCompareHref(set.id))}
@@ -206,5 +236,8 @@ const styles = StyleSheet.create({
   },
   metaRow: {
     gap: 2,
+  },
+  actions: {
+    gap: spacing.sm,
   },
 });

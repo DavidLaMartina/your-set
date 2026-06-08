@@ -25,13 +25,14 @@
 | `/(tabs)/workouts` | **Instances** — open, start visit, recent, swipe delete |
 | `/(tabs)/exercises` | Exercises by recent `performed_at` (flat — no variants) |
 | `/(tabs)/sets` | Global recent sets, `performed_at` DESC |
-| `/set/log` | Log or edit a set (workout or set-only); keyed on `exerciseId`; manufacturer chips |
+| `/set/log` | **Create** a set (workout or set-only); keyed on `exerciseId`; weight/reps/RIR, set type, manufacturer chips, **attach video** (staged → persisted on save) |
 | `/picker/exercise` | Add exercise to session lineup, workout, or log-set |
 | `/exercises/new` | Create or edit exercise (implement / muscle pickers) |
 | `/exercises/[id]` | Exercise detail = set history + manage |
 | `/session/[id]` | One **workout (instance)** — log, end, delete |
 | `/sessions/[id]` | **Definition** — rename, retire, delete, planned lineup |
-| `/set/[id]`, `/set/[id]/compare` | Set-first drill-down |
+| `/set/[id]` | Set screen — **view ↔ edit toggle** (same fields as create), video attach/play/missing, compare. `?edit=1` deep-links to edit |
+| `/set/[id]/compare` | Side-by-side video compare |
 
 ## Session model (schema v2)
 
@@ -122,7 +123,8 @@ Attach a video from the device photo library to a set, play it back in-app, and 
 - [x] Compare screen: play both panes when available
 - [x] Set list badges reflect stored `availability_status`; set detail re-resolves on open
 - [x] `MissingVideo` shown when file gone / permission denied — no crash
-- [ ] **Orientation-aware playback:** size the player to the video's real aspect ratio (portrait or landscape) from the `expo-video` track size (stored width/height as fallback); cap portrait height; center. No fixed 16:9 / pillar/letterbox boxes.
+- [x] **Orientation-aware playback:** size the player to the video's real aspect ratio (portrait or landscape) by measuring the upright thumbnail (encoded track size is landscape for rotated clips); cap portrait height; center. No fixed 16:9 / pillar/letterbox boxes.
+- [x] **Video in the log flow + unified set screen:** attach a video while logging a set (picked video staged, persisted on save). Set detail and edit are one screen with a view↔edit toggle (shared `LogSetForm` + `SetVideoSection`); `attachVideoToSet` split into `pickVideoFromLibrary` + `persistPickedVideo` so create can stage before the set row exists.
 
 ### Phase 5 — History & compare
 
@@ -143,6 +145,7 @@ Attach a video from the device photo library to a set, play it back in-app, and 
 
 | Date | Change |
 |------|--------|
+| 2026-06-08 | Unified set detail + edit into one view↔edit screen; added video attach to the log flow (staged → persisted on save); orientation-aware playback via thumbnail measurement. |
 | 2026-06-07 | Schema v6: manufacturer moved exercise → set (`sets.manufacturer_id`); migration uses DROP+rename swaps + stale-parent FK repair. Phase 4 local video started. |
 | 2026-06-06 | Schema v5: flatten exercise/variant → single `exercises` table with implement/muscle/manufacturer FKs + secondary-muscle join; routes `/picker/exercise`, `/exercises/[id]` history |
 | 2026-05-31 | Plan: 3b expanded — session lineup UI, set-only (variant + Sets tab) |

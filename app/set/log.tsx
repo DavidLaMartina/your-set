@@ -5,6 +5,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { LogSetForm } from '@/components/log-set-form';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
+import { SetVideoSection, type StagedVideo } from '@/components/set-video-section';
 import { StackHeader } from '@/components/stack-header';
 import { AppText } from '@/components/ui/app-text';
 import {
@@ -12,14 +13,14 @@ import {
   defaultManufacturerForExercise,
   emptyLogSetForm,
   formValuesToLogInput,
-  logSetFormFromSet,
-  updateLoggedSet,
   type LogSetFormValues,
 } from '@/features/sets/services/set-log-service';
-import * as SetRepo from '@/lib/db/repositories/set-repository';
+import { persistPickedVideo } from '@/features/video/services/set-video-service';
+import { pickVideoFromLibrary, type PickedVideo } from '@/lib/media/picker';
 import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
 import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
 import { setDetailHref, setsTabHref } from '@/lib/navigation';
+import { spacing } from '@/lib/theme/tokens';
 import type { Manufacturer } from '@/types/domain';
 
 export default function LogSetScreen() {
@@ -27,49 +28,62 @@ export default function LogSetScreen() {
     exerciseId: string;
     sessionInstanceId?: string;
     sessionInstanceExerciseId?: string;
-    setId?: string;
     returnTo?: 'sets';
   }>();
 
   const exerciseId = params.exerciseId;
-  const setId = params.setId;
-  const isEdit = Boolean(setId);
 
-  const [title, setTitle] = useState<string>('Log set');
   const [subtitle, setSubtitle] = useState<string | undefined>();
   const [form, setForm] = useState<LogSetFormValues>(emptyLogSetForm());
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const [stagedVideo, setStagedVideo] = useState<PickedVideo | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!exerciseId) return;
     setLoading(true);
     try {
-      const [exercise, mfrs] = await Promise.all([
+      const [exercise, mfrs, lastMfr] = await Promise.all([
         ExerciseRepo.getExerciseById(exerciseId),
         ReferenceRepo.listManufacturers(),
+        defaultManufacturerForExercise(exerciseId),
       ]);
       if (!exercise) return;
       setManufacturers(mfrs);
-      setTitle(isEdit ? 'Edit set' : 'Log set');
       setSubtitle(exercise.name);
-
-      if (setId) {
-        const existing = await SetRepo.getSetById(setId);
-        if (existing) setForm(logSetFormFromSet(existing));
-      } else {
-        const lastMfr = await defaultManufacturerForExercise(exerciseId);
-        setForm(emptyLogSetForm(lastMfr));
-      }
+      setForm(emptyLogSetForm(lastMfr));
     } finally {
       setLoading(false);
     }
-  }, [exerciseId, setId, isEdit]);
+  }, [exerciseId]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handleAttach = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await pickVideoFromLibrary();
+      if (result.ok) {
+        setStagedVideo(result.video);
+      } else if (result.reason === 'permissionDenied') {
+        Alert.alert(
+          'Photo access needed',
+          'Allow photo library access in Settings to attach a video.',
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [busy]);
+
+  const staged: StagedVideo | null = stagedVideo
+    ? { uri: stagedVideo.uri, width: stagedVideo.width, height: stagedVideo.height }
+    : null;
 
   const handleSave = async () => {
     if (!exerciseId) return;
@@ -82,25 +96,28 @@ export default function LogSetScreen() {
 
     setSaving(true);
     try {
-      const base = {
+      const input = formValuesToLogInput(form, {
         exerciseId,
         sessionInstanceId: params.sessionInstanceId ?? null,
         sessionInstanceExerciseId: params.sessionInstanceExerciseId ?? null,
-      };
-      const input = formValuesToLogInput(form, base);
+      });
+      const created = await createLoggedSet(input);
 
-      if (isEdit && setId) {
-        await updateLoggedSet(setId, input);
-        router.replace(setDetailHref(setId));
-      } else {
-        const created = await createLoggedSet(input);
-        if (params.sessionInstanceId) {
-          router.back();
-        } else if (params.returnTo === 'sets') {
-          router.replace(setsTabHref());
-        } else {
-          router.replace(setDetailHref(created.id));
+      if (stagedVideo) {
+        try {
+          await persistPickedVideo(created.id, stagedVideo);
+        } catch {
+          // Set is saved; video copy failed. The set screen will show the
+          // attach CTA so the user can retry.
         }
+      }
+
+      if (params.sessionInstanceId) {
+        router.back();
+      } else if (params.returnTo === 'sets') {
+        router.replace(setsTabHref());
+      } else {
+        router.replace(setDetailHref(created.id));
       }
     } finally {
       setSaving(false);
@@ -119,7 +136,7 @@ export default function LogSetScreen() {
   if (loading) {
     return (
       <Screen scroll={false} padded>
-        <StackHeader title={title} />
+        <StackHeader title="Log set" />
         <AppText muted>Loading…</AppText>
       </Screen>
     );
@@ -127,16 +144,22 @@ export default function LogSetScreen() {
 
   return (
     <Screen>
-      <StackHeader title={title} subtitle={subtitle} />
+      <StackHeader title="Log set" subtitle={subtitle} />
       {!params.sessionInstanceId ? (
         <AppText variant="caption" muted>
           Set-only log — not tied to an open workout.
         </AppText>
       ) : null}
       <LogSetForm values={form} onChange={setForm} manufacturers={manufacturers} />
+      <SetVideoSection
+        staged={staged}
+        busy={busy}
+        onAttach={handleAttach}
+        onRemove={() => setStagedVideo(null)}
+      />
       <View style={styles.actions}>
         <PrimaryButton
-          label={saving ? 'Saving…' : isEdit ? 'Save changes' : 'Save set'}
+          label={saving ? 'Saving…' : 'Save set'}
           onPress={() => void handleSave()}
         />
         <PrimaryButton label="Cancel" variant="ghost" onPress={() => router.back()} />
@@ -147,6 +170,6 @@ export default function LogSetScreen() {
 
 const styles = StyleSheet.create({
   actions: {
-    gap: 8,
+    gap: spacing.sm,
   },
 });

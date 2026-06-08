@@ -1,5 +1,5 @@
 import { generateThumbnail, resolveVideoAvailability } from '@/lib/media/availability';
-import { pickVideoFromLibrary } from '@/lib/media/picker';
+import { pickVideoFromLibrary, type PickedVideo } from '@/lib/media/picker';
 import {
   deletePersistedFile,
   persistThumbnailFile,
@@ -14,22 +14,24 @@ export type AttachVideoResult =
   | { ok: false; reason: 'canceled' | 'permissionDenied' };
 
 /**
- * Pick a video from the library and store a persistent copy + reference for the
- * set. Used for both the initial attach and relink (set_id is unique, so this
- * replaces any existing reference). The picked file lives in the clearable
- * cache directory, so we copy it into the document directory to survive reloads.
+ * Copy an already-picked video into the document directory and store the
+ * reference for a set. Split out from {@link attachVideoToSet} so the create
+ * flow can pick a video before the set row exists, then persist once it does.
+ *
+ * The picked file lives in the clearable cache directory, so we copy it into
+ * the document directory to survive reloads. set_id is unique, so this replaces
+ * any existing reference (relink) and cleans up the previous files.
  */
-export async function attachVideoToSet(setId: string): Promise<AttachVideoResult> {
-  const picked = await pickVideoFromLibrary();
-  if (!picked.ok) return picked;
-
-  const { video } = picked;
+export async function persistPickedVideo(
+  setId: string,
+  picked: PickedVideo,
+): Promise<SetVideo> {
   const previous = await SetVideoRepo.getSetVideoBySetId(setId);
 
   const fileId = newId();
-  let persistentUri = video.uri;
+  let persistentUri = picked.uri;
   try {
-    persistentUri = persistVideoFile(video.uri, fileId);
+    persistentUri = persistVideoFile(picked.uri, fileId);
   } catch {
     // Fall back to the original URI; availability resolution will flag it if it
     // later becomes unreadable.
@@ -40,14 +42,14 @@ export async function attachVideoToSet(setId: string): Promise<AttachVideoResult
 
   const saved = await SetVideoRepo.upsertSetVideo({
     setId,
-    assetId: video.assetId,
+    assetId: picked.assetId,
     uri: persistentUri,
     thumbnailUri,
-    durationMs: video.durationMs,
+    durationMs: picked.durationMs,
     // Prefer the thumbnail's display-corrected dimensions; the picker reports
     // rotated portrait videos with swapped (landscape) width/height.
-    width: rawThumbnail?.width ?? video.width,
-    height: rawThumbnail?.height ?? video.height,
+    width: rawThumbnail?.width ?? picked.width,
+    height: rawThumbnail?.height ?? picked.height,
     availabilityStatus: 'available',
   });
 
@@ -56,7 +58,19 @@ export async function attachVideoToSet(setId: string): Promise<AttachVideoResult
     deletePersistedFile(previous.thumbnailUri);
   }
 
-  return { ok: true, video: saved };
+  return saved;
+}
+
+/**
+ * Pick a video from the library and persist it for the set. Used for the
+ * initial attach and relink when the set already exists.
+ */
+export async function attachVideoToSet(setId: string): Promise<AttachVideoResult> {
+  const picked = await pickVideoFromLibrary();
+  if (!picked.ok) return picked;
+
+  const video = await persistPickedVideo(setId, picked.video);
+  return { ok: true, video };
 }
 
 export async function removeVideoFromSet(setId: string): Promise<void> {
