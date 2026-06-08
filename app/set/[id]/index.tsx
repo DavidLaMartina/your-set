@@ -139,7 +139,12 @@ export default function SetDetailScreen() {
       <AppText variant="titleMedium">Video</AppText>
       {canPlay ? (
         <>
-          <SetVideoPlayer uri={video!.uri!} />
+          <SetVideoPlayer
+            uri={video!.uri!}
+            width={video!.width}
+            height={video!.height}
+            thumbnailUri={video!.thumbnailUri}
+          />
           <PrimaryButton
             label={busy ? 'Working…' : 'Replace video'}
             variant="ghost"

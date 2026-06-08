@@ -112,16 +112,17 @@ Manufacturer (equipment brand) is recorded **per set at log time**, not on the e
 
 ### Phase 4 — Local video references
 
-Attach a video from the device photo library to a set, play it back in-app, and degrade gracefully when the underlying asset is gone. The `set_videos` table already exists (schema v1); we store a **reference** (`asset_id` + cached `uri`/`thumbnail_uri` + `availability_status`), never a copy.
+Attach a video from the device photo library to a set, play it back in-app, and degrade gracefully when it goes missing. The `set_videos` table already exists (schema v1). The picker returns a file in the **clearable cache** dir, so on attach we copy the video (and thumbnail) into the **document directory** and store that stable path + `asset_id` + `availability_status`. This makes the log self-contained across reloads; `missing` now means the app's own copy is gone (app data cleared), with `assetId` as a fallback re-resolution path.
 
-- [ ] Deps: `expo-image-picker`, `expo-media-library`, `expo-video`, `expo-video-thumbnails`; iOS photo-library permission strings in `app.json`
-- [ ] `SetVideoRepository` — get by set, upsert (set_id UNIQUE), update availability, delete, batch fetch by set ids
-- [ ] `lib/media/picker.ts` (pick video) + `lib/media/availability.ts` (resolve `assetId` → playable `localUri` / status)
-- [ ] `features/video/services` — attach, relink, remove, resolve-and-persist
-- [ ] Set detail: real playback (`expo-video`) when available; working relink/remove; attach when none
-- [ ] Compare screen: play both panes when available
-- [ ] Set list badges reflect stored `availability_status`; set detail re-resolves on open
-- [ ] `MissingVideo` shown when asset deleted / permission denied — no crash
+- [x] Deps: `expo-image-picker`, `expo-media-library`, `expo-video`, `expo-video-thumbnails`, `expo-file-system`; iOS photo-library permission strings in `app.json`
+- [x] `SetVideoRepository` — get by set, upsert (set_id UNIQUE), update availability, delete, batch fetch by set ids
+- [x] `lib/media/picker.ts` (pick), `lib/media/storage.ts` (persist/exists/delete via `File`/`Directory`), `lib/media/availability.ts` (resolve from persisted file, MediaLibrary fallback)
+- [x] `features/video/services` — attach (copy + thumbnail), relink (replace + cleanup), remove (delete files), resolve-and-persist
+- [x] Set detail: real playback (`expo-video`) when available; working relink/remove; attach when none
+- [x] Compare screen: play both panes when available
+- [x] Set list badges reflect stored `availability_status`; set detail re-resolves on open
+- [x] `MissingVideo` shown when file gone / permission denied — no crash
+- [ ] **Orientation-aware playback:** size the player to the video's real aspect ratio (portrait or landscape) from the `expo-video` track size (stored width/height as fallback); cap portrait height; center. No fixed 16:9 / pillar/letterbox boxes.
 
 ### Phase 5 — History & compare
 

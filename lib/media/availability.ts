@@ -53,11 +53,22 @@ export async function resolveVideoAvailability(
   return { status: video.uri ? 'missing' : 'unknown' };
 }
 
+export type GeneratedThumbnail = {
+  uri: string;
+  /** Display-corrected dimensions — reflect the video's true orientation. */
+  width: number | null;
+  height: number | null;
+};
+
 /** Best-effort thumbnail; returns null on any failure (codec, permission, etc.). */
-export async function generateThumbnail(uri: string): Promise<string | null> {
+export async function generateThumbnail(uri: string): Promise<GeneratedThumbnail | null> {
   try {
-    const { uri: thumbnailUri } = await VideoThumbnails.getThumbnailAsync(uri, { time: 500 });
-    return thumbnailUri;
+    const result = await VideoThumbnails.getThumbnailAsync(uri, { time: 500 });
+    return {
+      uri: result.uri,
+      width: result.width ?? null,
+      height: result.height ?? null,
+    };
   } catch {
     return null;
   }

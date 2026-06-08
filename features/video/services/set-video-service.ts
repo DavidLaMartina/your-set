@@ -36,7 +36,7 @@ export async function attachVideoToSet(setId: string): Promise<AttachVideoResult
   }
 
   const rawThumbnail = await generateThumbnail(persistentUri);
-  const thumbnailUri = rawThumbnail ? persistThumbnailFile(rawThumbnail, fileId) : null;
+  const thumbnailUri = rawThumbnail ? persistThumbnailFile(rawThumbnail.uri, fileId) : null;
 
   const saved = await SetVideoRepo.upsertSetVideo({
     setId,
@@ -44,8 +44,10 @@ export async function attachVideoToSet(setId: string): Promise<AttachVideoResult
     uri: persistentUri,
     thumbnailUri,
     durationMs: video.durationMs,
-    width: video.width,
-    height: video.height,
+    // Prefer the thumbnail's display-corrected dimensions; the picker reports
+    // rotated portrait videos with swapped (landscape) width/height.
+    width: rawThumbnail?.width ?? video.width,
+    height: rawThumbnail?.height ?? video.height,
     availabilityStatus: 'available',
   });
 

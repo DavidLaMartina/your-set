@@ -283,6 +283,9 @@ npx expo install expo-image-picker expo-media-library expo-video expo-video-thum
 6. Set Detail: `expo-video` playback when available; `MissingVideo` relink/remove wired; attach CTA when none; re-resolve on mount
 7. Compare: play both panes when available
 8. Thumbnail generation best-effort (`expo-video-thumbnails`); fallback to icon
+9. **Orientation-aware playback:** `SetVideoPlayer` derives aspect ratio from the `expo-video` `sourceLoad` track size (falling back to stored `width`/`height`, then 16:9), measures its container width, and sizes the view so landscape fills width and portrait is height-capped + centered — never a fixed box with side/top bars
+
+> **Storage note (revised):** rather than streaming a photo-library reference, attach **copies** the picked video into the document directory (`set-videos/`) via `expo-file-system` `File`/`Directory`, because the picker's cache URI does not survive reloads. `availability_status` is driven by whether that persisted file exists, with `assetId` re-resolution as a fallback.
 
 ### Acceptance
 

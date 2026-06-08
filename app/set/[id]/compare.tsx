@@ -91,7 +91,13 @@ function ComparePane({ label, set }: { label: string; set: HistorySetRow }) {
         {formatPerformedAt(set.performedAt)}
       </AppText>
       {canPlay ? (
-        <SetVideoPlayer uri={set.video!.uri!} aspectRatio={9 / 16} />
+        <SetVideoPlayer
+          uri={set.video!.uri!}
+          width={set.video!.width}
+          height={set.video!.height}
+          thumbnailUri={set.video!.thumbnailUri}
+          maxHeightFraction={0.4}
+        />
       ) : (
         <VideoPlaceholder status={videoStatus === 'none' ? 'unknown' : videoStatus} />
       )}
