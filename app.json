@@ -39,7 +39,24 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Your Set accesses your photo library so you can attach set videos to your logs.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Your Set reads your photo library to play and re-check attached set videos.",
+          "savePhotosPermission": false,
+          "preventAutomaticLimitedAccessAlert": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

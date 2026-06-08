@@ -1,34 +1,93 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import { MissingVideo } from '@/components/missing-video';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { StackHeader } from '@/components/stack-header';
 import { SetTypeBadge } from '@/components/set-type-badge';
+import { SetVideoPlayer } from '@/components/set-video-player';
 import { VideoPlaceholder } from '@/components/video-placeholder';
 import { AppText } from '@/components/ui/app-text';
 import { formatPerformedAt, formatSetLabel } from '@/lib/format';
 import { loadSetWithContext } from '@/features/history/services/exercise-history-service';
+import {
+  attachVideoToSet,
+  removeVideoFromSet,
+  resolveAndPersistSetVideo,
+} from '@/features/video/services/set-video-service';
 import { logSetHref, setCompareHref } from '@/lib/navigation';
 import { spacing } from '@/lib/theme/tokens';
-import type { HistorySetRow } from '@/types/domain';
+import type { HistorySetRow, SetVideo } from '@/types/domain';
 import { SET_TYPE_LABELS } from '@/types/domain';
 
 export default function SetDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [set, setSet] = useState<HistorySetRow | null>(null);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const applyVideo = useCallback((video: SetVideo | null) => {
+    setSet((prev) => (prev ? { ...prev, video } : prev));
+  }, []);
 
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
     (async () => {
       setLoading(true);
-      setSet(await loadSetWithContext(id));
+      const row = await loadSetWithContext(id);
+      if (cancelled) return;
+      setSet(row);
       setLoading(false);
+      if (row?.video) {
+        const refreshed = await resolveAndPersistSetVideo(id);
+        if (!cancelled) applyVideo(refreshed);
+      }
     })();
-  }, [id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [id, applyVideo]);
+
+  const handleAttach = useCallback(async () => {
+    if (!id || busy) return;
+    setBusy(true);
+    try {
+      const result = await attachVideoToSet(id);
+      if (result.ok) {
+        applyVideo(result.video);
+      } else if (result.reason === 'permissionDenied') {
+        Alert.alert(
+          'Photo access needed',
+          'Allow photo library access in Settings to attach a video.',
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [id, busy, applyVideo]);
+
+  const handleRemove = useCallback(() => {
+    if (!id || busy) return;
+    Alert.alert('Remove video reference?', 'This removes the link only; your video stays in Photos.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await removeVideoFromSet(id);
+            applyVideo(null);
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  }, [id, busy, applyVideo]);
 
   if (loading) {
     return (
@@ -50,8 +109,10 @@ export default function SetDetailScreen() {
     );
   }
 
-  const videoStatus = set.video?.availabilityStatus ?? 'none';
-  const isMissing = videoStatus === 'missing' || videoStatus === 'permissionDenied';
+  const video = set.video;
+  const status = video?.availabilityStatus ?? 'none';
+  const canPlay = status === 'available' && !!video?.uri;
+  const isMissing = status === 'missing' || status === 'permissionDenied';
 
   return (
     <Screen>
@@ -65,9 +126,7 @@ export default function SetDetailScreen() {
       <Metadata
         label="Session"
         value={
-          set.sessionInstanceId
-            ? set.sessionName ?? 'In session'
-            : 'None (set-only log)'
+          set.sessionInstanceId ? set.sessionName ?? 'In session' : 'None (set-only log)'
         }
       />
       <Metadata label="Set type" value={SET_TYPE_LABELS[set.setType]} />
@@ -78,13 +137,26 @@ export default function SetDetailScreen() {
       {set.notes ? <Metadata label="Notes" value={set.notes} /> : null}
 
       <AppText variant="titleMedium">Video</AppText>
-      {isMissing ? (
-        <MissingVideo onRelink={() => {}} onRemove={() => {}} />
+      {canPlay ? (
+        <>
+          <SetVideoPlayer uri={video!.uri!} />
+          <PrimaryButton
+            label={busy ? 'Working…' : 'Replace video'}
+            variant="ghost"
+            onPress={handleAttach}
+          />
+          <PrimaryButton label="Remove video reference" variant="danger" onPress={handleRemove} />
+        </>
+      ) : isMissing ? (
+        <MissingVideo onRelink={handleAttach} onRemove={handleRemove} />
       ) : (
-        <VideoPlaceholder
-          status={videoStatus === 'none' ? 'unknown' : videoStatus}
-          onPress={() => {}}
-        />
+        <>
+          <VideoPlaceholder status="none" onPress={handleAttach} />
+          <PrimaryButton
+            label={busy ? 'Opening…' : 'Attach video'}
+            onPress={handleAttach}
+          />
+        </>
       )}
 
       <PrimaryButton
@@ -106,10 +178,6 @@ export default function SetDetailScreen() {
         label="Compare with prior set"
         onPress={() => router.push(setCompareHref(set.id))}
       />
-
-      {!isMissing && videoStatus !== 'none' ? (
-        <PrimaryButton label="Remove video reference" variant="danger" onPress={() => {}} />
-      ) : null}
     </Screen>
   );
 }

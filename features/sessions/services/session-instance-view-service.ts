@@ -3,6 +3,7 @@ import * as SessionRepo from '@/lib/db/repositories/session-repository';
 import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
 import * as SessionInstanceExerciseRepo from '@/lib/db/repositories/session-instance-exercise-repository';
 import * as SetRepo from '@/lib/db/repositories/set-repository';
+import * as SetVideoRepo from '@/lib/db/repositories/set-video-repository';
 import type { SessionExerciseBlock, SessionInstanceView, SetWithVideo } from '@/types/domain';
 
 async function enrichBlock(
@@ -16,7 +17,11 @@ async function enrichBlock(
     sessionInstanceId,
     block.exerciseId,
   );
-  const setsWithVideo: SetWithVideo[] = sets.map((set) => ({ ...set, video: null }));
+  const videos = await SetVideoRepo.listSetVideosBySetIds(sets.map((s) => s.id));
+  const setsWithVideo: SetWithVideo[] = sets.map((set) => ({
+    ...set,
+    video: videos.get(set.id) ?? null,
+  }));
 
   return { ...block, exercise, sets: setsWithVideo };
 }

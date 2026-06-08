@@ -4,8 +4,9 @@ import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
 import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
 import * as SessionRepo from '@/lib/db/repositories/session-repository';
 import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
+import * as SetVideoRepo from '@/lib/db/repositories/set-video-repository';
 import type { SetRow } from '@/lib/db/row-types';
-import type { Set, SetWithVideo } from '@/types/domain';
+import type { Set, SetVideo, SetWithVideo } from '@/types/domain';
 
 export type RecentSetRow = SetWithVideo & {
   exerciseName: string;
@@ -20,15 +21,16 @@ export async function listRecentSets(limit = 80): Promise<RecentSetRow[]> {
     ReferenceRepo.listManufacturers(),
   ]);
   const manufacturerNames = new Map(manufacturers.map((m) => [m.id, m.name]));
+  const sets = rows.map(mapSetRow);
+  const videos = await SetVideoRepo.listSetVideosBySetIds(sets.map((s) => s.id));
 
-  return Promise.all(
-    rows.map(async (row) => enrichSetRow(mapSetRow(row), manufacturerNames)),
-  );
+  return Promise.all(sets.map((set) => enrichSetRow(set, manufacturerNames, videos)));
 }
 
 async function enrichSetRow(
   set: Set,
   manufacturerNames: Map<string, string>,
+  videos: Map<string, SetVideo>,
 ): Promise<RecentSetRow> {
   const exercise = await ExerciseRepo.getExerciseById(set.exerciseId);
 
@@ -43,7 +45,7 @@ async function enrichSetRow(
 
   return {
     ...set,
-    video: null,
+    video: videos.get(set.id) ?? null,
     exerciseName: exercise?.name ?? 'Unknown',
     manufacturerName: set.manufacturerId
       ? manufacturerNames.get(set.manufacturerId) ?? null

@@ -2,8 +2,8 @@
 
 > Living plan for the local-first visual training logbook. Update this file as scope and phases change.
 
-**Last updated:** 2026-06-06  
-**Status:** Phase 3b implemented locally; exercise model redesigned (v5, flatten variants); Phase 4 next
+**Last updated:** 2026-06-07  
+**Status:** Phase 3b done; exercise model flattened (v5); manufacturer moved to sets (v6); Phase 4 (local video) in progress
 
 ## Product summary
 
@@ -25,9 +25,9 @@
 | `/(tabs)/workouts` | **Instances** — open, start visit, recent, swipe delete |
 | `/(tabs)/exercises` | Exercises by recent `performed_at` (flat — no variants) |
 | `/(tabs)/sets` | Global recent sets, `performed_at` DESC |
-| `/set/log` | Log or edit a set (workout or set-only), keyed on `exerciseId` |
+| `/set/log` | Log or edit a set (workout or set-only); keyed on `exerciseId`; manufacturer chips |
 | `/picker/exercise` | Add exercise to session lineup, workout, or log-set |
-| `/exercises/new` | Create or edit exercise (implement / muscle / mfr pickers) |
+| `/exercises/new` | Create or edit exercise (implement / muscle pickers) |
 | `/exercises/[id]` | Exercise detail = set history + manage |
 | `/session/[id]` | One **workout (instance)** — log, end, delete |
 | `/sessions/[id]` | **Definition** — rename, retire, delete, planned lineup |
@@ -97,13 +97,31 @@
 Collapsed the `exercise`/`variant` split — the **exercise is now the single loggable unit**.
 
 - [x] Migration `005`: drop `exercise_variants`; add `implements` / `muscles` / `manufacturers` (seeded stock) + `exercise_secondary_muscles` join; remap `sets` / session FKs to `exercise_id` (pre-release data reseeded)
-- [x] Exercise = name + optional implement FK + primary muscle FK + optional manufacturer + secondary muscles; `origin` / `catalog_id` seam for a future shared/cloud library
+- [x] Exercise = name + optional implement FK + primary muscle FK + secondary muscles; `origin` / `catalog_id` seam for a future shared/cloud library
 - [x] Exercise create/edit form with reference pickers; exercise detail = history + manage; `/picker/exercise`
 - [ ] **Later:** bundled stock exercise library + filter by muscle/implement; cloud-hosted shared library + sync
 
+### Manufacturer on set (schema v6)
+
+Manufacturer (equipment brand) is recorded **per set at log time**, not on the exercise — one "machine incline press" exercise can be logged against a different machine brand on different days. Optional for all implements (machine, barbell, cable, etc.).
+
+- [x] Migration `006`: add `sets.manufacturer_id` (nullable FK → `manufacturers`); drop `exercises.manufacturer_id`. Uses DROP+rename swaps (never renames a parent table, which would rewrite child FKs to `*_old`) under `PRAGMA foreign_keys = OFF`, plus a startup repair for any DB left referencing `exercises_old` / `sets_old`
+- [x] Log form: manufacturer chips, default to last manufacturer logged for that exercise
+- [x] Display manufacturer on set detail, Sets tab, exercise history rows
+- [x] Removed manufacturer from exercise create/edit
+
 ### Phase 4 — Local video references
 
-- [ ] Attach, play, missing video
+Attach a video from the device photo library to a set, play it back in-app, and degrade gracefully when the underlying asset is gone. The `set_videos` table already exists (schema v1); we store a **reference** (`asset_id` + cached `uri`/`thumbnail_uri` + `availability_status`), never a copy.
+
+- [ ] Deps: `expo-image-picker`, `expo-media-library`, `expo-video`, `expo-video-thumbnails`; iOS photo-library permission strings in `app.json`
+- [ ] `SetVideoRepository` — get by set, upsert (set_id UNIQUE), update availability, delete, batch fetch by set ids
+- [ ] `lib/media/picker.ts` (pick video) + `lib/media/availability.ts` (resolve `assetId` → playable `localUri` / status)
+- [ ] `features/video/services` — attach, relink, remove, resolve-and-persist
+- [ ] Set detail: real playback (`expo-video`) when available; working relink/remove; attach when none
+- [ ] Compare screen: play both panes when available
+- [ ] Set list badges reflect stored `availability_status`; set detail re-resolves on open
+- [ ] `MissingVideo` shown when asset deleted / permission denied — no crash
 
 ### Phase 5 — History & compare
 
@@ -124,6 +142,7 @@ Collapsed the `exercise`/`variant` split — the **exercise is now the single lo
 
 | Date | Change |
 |------|--------|
+| 2026-06-07 | Schema v6: manufacturer moved exercise → set (`sets.manufacturer_id`); migration uses DROP+rename swaps + stale-parent FK repair. Phase 4 local video started. |
 | 2026-06-06 | Schema v5: flatten exercise/variant → single `exercises` table with implement/muscle/manufacturer FKs + secondary-muscle join; routes `/picker/exercise`, `/exercises/[id]` history |
 | 2026-05-31 | Plan: 3b expanded — session lineup UI, set-only (variant + Sets tab) |
 | 2026-05-31 | Phase 3a: definitions, rotation, migration 002, three-tab IA |

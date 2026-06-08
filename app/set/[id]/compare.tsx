@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { StackHeader } from '@/components/stack-header';
+import { SetVideoPlayer } from '@/components/set-video-player';
 import { VideoPlaceholder } from '@/components/video-placeholder';
 import { AppText } from '@/components/ui/app-text';
 import { formatPerformedAt, formatSetLabel } from '@/lib/format';
@@ -59,7 +60,7 @@ export default function VideoCompareScreen() {
 
   return (
     <Screen>
-      <StackHeader title="Compare" subtitle="Side-by-side — playback in Phase 4" />
+      <StackHeader title="Compare" subtitle="Side-by-side" />
       <View style={styles.panes}>
         <ComparePane label="Selected" set={left} />
         {right ? (
@@ -72,9 +73,6 @@ export default function VideoCompareScreen() {
           </View>
         )}
       </View>
-      <AppText variant="caption" muted style={styles.note}>
-        Phase 4 adds real video playback.
-      </AppText>
       <PrimaryButton label="Back" variant="ghost" onPress={() => router.back()} />
     </Screen>
   );
@@ -82,6 +80,7 @@ export default function VideoCompareScreen() {
 
 function ComparePane({ label, set }: { label: string; set: HistorySetRow }) {
   const videoStatus = set.video?.availabilityStatus ?? 'none';
+  const canPlay = videoStatus === 'available' && !!set.video?.uri;
 
   return (
     <View style={styles.pane}>
@@ -91,7 +90,11 @@ function ComparePane({ label, set }: { label: string; set: HistorySetRow }) {
       <AppText variant="caption" muted>
         {formatPerformedAt(set.performedAt)}
       </AppText>
-      <VideoPlaceholder status={videoStatus === 'none' ? 'unknown' : videoStatus} />
+      {canPlay ? (
+        <SetVideoPlayer uri={set.video!.uri!} aspectRatio={9 / 16} />
+      ) : (
+        <VideoPlaceholder status={videoStatus === 'none' ? 'unknown' : videoStatus} />
+      )}
       <AppText variant="dataLarge">{formatSetLabel(set.weight, set.reps)}</AppText>
       <AppText variant="caption" muted>
         {SET_TYPE_LABELS[set.setType]}

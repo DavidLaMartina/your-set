@@ -57,17 +57,18 @@ A future backend would add its own entities and EF migrations against the **same
 | Optional end | `session_instances.ended_at` is nullable; never required to save or view sets |
 | One time field | `performedAt` on the set is what UI and filters use for “when” |
 
-## Entity relationship (schema v5)
+## Entity relationship (schema v6)
 
 The exercise/variant split was collapsed in v5 — the **exercise is the single
 loggable unit**. Free-text muscle/equipment became foreign keys to seeded
-reference tables, with secondary muscles in a join table.
+reference tables, with secondary muscles in a join table. In v6, manufacturer
+(equipment brand) moved to the **set**, recorded per log.
 
 ```mermaid
 erDiagram
   Implement ||--o{ Exercise : implement_id
   Muscle ||--o{ Exercise : primary_muscle_id
-  Manufacturer ||--o{ Exercise : manufacturer_id
+  Manufacturer ||--o{ Set : manufacturer_id
   Exercise ||--o{ ExerciseSecondaryMuscle : has
   Muscle ||--o{ ExerciseSecondaryMuscle : referenced_by
   Exercise ||--o{ Set : logged_as

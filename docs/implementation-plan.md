@@ -4,7 +4,9 @@ Phased delivery in small, reviewable PRs. Each phase has clear exit criteria bef
 
 **Master plan (living):** [.cursor/plans/your-set-mvp.md](../.cursor/plans/your-set-mvp.md)
 
-> **Schema v5 update (2026-06-06):** the `exercise`/`variant` split below was collapsed — the **exercise is now the single loggable unit** (with implement/muscle/manufacturer FKs + a secondary-muscle join table). Treat references to `ExerciseVariant`, `exerciseVariantId`, `/variant/[id]/history`, and `/picker/variant` in earlier phases as historical; current shapes live in [data-model.md](./data-model.md), `types/domain.ts`, and `lib/db/migrations/005-exercises-flatten.ts`.
+> **Schema v5 update (2026-06-06):** the `exercise`/`variant` split below was collapsed — the **exercise is now the single loggable unit** (with implement/muscle FKs + a secondary-muscle join table). Treat references to `ExerciseVariant`, `exerciseVariantId`, `/variant/[id]/history`, and `/picker/variant` in earlier phases as historical; current shapes live in [data-model.md](./data-model.md), `types/domain.ts`, and `lib/db/migrations/005-exercises-flatten.ts`.
+>
+> **Schema v6 update (2026-06-07):** manufacturer (equipment brand) moved from the exercise to the **set** (`sets.manufacturer_id`, nullable FK → `manufacturers`); `exercises.manufacturer_id` was removed. Recorded per set at log time. Migration `006` swaps tables with DROP+rename (parent renames would rewrite child FKs to `*_old`) and ships a startup repair for any DB left pointing at `exercises_old` / `sets_old`. References below to "manufacturer on exercise" are historical.
 
 ## Repo baseline (2026-05-31)
 
@@ -255,30 +257,39 @@ Sets tab is a **chronological logbook**, not a video feed — optional video bad
 
 **Goal:** Attach, play, relink, and handle missing videos.
 
-### Dependencies
+### Dependencies (installed 2026-06-07)
 
 ```bash
-npx expo install expo-media-library expo-image-picker expo-video expo-video-thumbnails
+npx expo install expo-image-picker expo-media-library expo-video expo-video-thumbnails
 ```
 
-Update `app.json` with iOS `NSPhotoLibraryUsageDescription` / Android permissions per Expo docs v54.
+`app.json`: `expo-video` config plugin (auto), plus `expo-image-picker` and `expo-media-library` plugins with iOS photo-library permission strings; camera/microphone/save disabled (read + pick only).
+
+### Storage model
+
+`set_videos` (schema v1, one row per set via `set_id UNIQUE`) holds a **reference**, never a copy:
+
+- `asset_id` — MediaLibrary asset id (lets us re-resolve and detect deletion)
+- `uri` / `thumbnail_uri` — last known playable URI + best-effort thumbnail
+- `availability_status` — `available` | `missing` | `permissionDenied` | `unknown` (persisted; lists read this, set detail refreshes it)
 
 ### Tasks
 
-1. `SetVideoRepository` + migration if table created in Phase 2
-2. `lib/media/picker.ts` — pick video from library
-3. `lib/media/availability.ts` — resolve `assetId`, set status
-4. Attach flow from SetRow / Set Detail
-5. Thumbnail generation (best-effort; fallback to icon)
-6. `MissingVideo` component on Set Detail + Compare when unavailable
-7. Relink and remove reference actions
-8. Foreground refresh of availability statuses
+1. `SetVideoRepository` — `getBySetId`, `upsert` (insert or replace on `set_id`), `updateAvailability`, `deleteBySetId`, `listBySetIds` (batch for list badges)
+2. `lib/media/picker.ts` — request library permission, `launchImageLibraryAsync({ mediaTypes: ['videos'] })`, return `{ assetId, uri, durationMs, width, height }`
+3. `lib/media/availability.ts` — resolve `assetId` → fresh `localUri` via `getAssetInfoAsync`; map to status (`permissionDenied` when not granted, `missing` when asset gone)
+4. `features/video/services/set-video-service.ts` — attach (pick → thumbnail → upsert), relink, remove, `resolveAndPersist`
+5. Wire `SetWithVideo` loaders (history, recent sets, session view) to hydrate the stored video instead of `null`
+6. Set Detail: `expo-video` playback when available; `MissingVideo` relink/remove wired; attach CTA when none; re-resolve on mount
+7. Compare: play both panes when available
+8. Thumbnail generation best-effort (`expo-video-thumbnails`); fallback to icon
 
 ### Acceptance
 
 - [ ] Attach video to set; playback works in app
 - [ ] Delete video from Photos → app shows missing state, no crash
 - [ ] Relink restores `available` when user picks new asset
+- [ ] List badges reflect stored status without prompting for permission on every render
 
 ---
 

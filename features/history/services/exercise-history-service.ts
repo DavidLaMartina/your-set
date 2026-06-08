@@ -3,11 +3,13 @@ import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
 import * as SessionRepo from '@/lib/db/repositories/session-repository';
 import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
 import * as SetRepo from '@/lib/db/repositories/set-repository';
-import type { ExerciseHistoryView, HistorySetRow, SetWithVideo } from '@/types/domain';
+import * as SetVideoRepo from '@/lib/db/repositories/set-video-repository';
+import type { ExerciseHistoryView, HistorySetRow, Set, SetVideo } from '@/types/domain';
 
 async function enrichSetRow(
-  set: Awaited<ReturnType<typeof SetRepo.getSetById>>,
+  set: Set | null,
   manufacturerNames: Map<string, string>,
+  videos: Map<string, SetVideo>,
 ): Promise<HistorySetRow | null> {
   if (!set) return null;
   let sessionName: string | null = null;
@@ -20,11 +22,10 @@ async function enrichSetRow(
       sessionName = 'Session';
     }
   }
-  const row: SetWithVideo = { ...set, video: null };
   const manufacturerName = set.manufacturerId
     ? manufacturerNames.get(set.manufacturerId) ?? null
     : null;
-  return { ...row, sessionName, manufacturerName };
+  return { ...set, video: videos.get(set.id) ?? null, sessionName, manufacturerName };
 }
 
 export async function loadExerciseHistory(exerciseId: string): Promise<ExerciseHistoryView | null> {
@@ -36,9 +37,10 @@ export async function loadExerciseHistory(exerciseId: string): Promise<ExerciseH
     ReferenceRepo.listManufacturers(),
   ]);
   const manufacturerNames = new Map(manufacturers.map((m) => [m.id, m.name]));
+  const videos = await SetVideoRepo.listSetVideosBySetIds(sets.map((s) => s.id));
 
   const recentSets = (
-    await Promise.all(sets.map((s) => enrichSetRow(s, manufacturerNames)))
+    await Promise.all(sets.map((s) => enrichSetRow(s, manufacturerNames, videos)))
   ).filter((r): r is HistorySetRow => r != null);
 
   const bestSets = [...recentSets]
@@ -51,10 +53,13 @@ export async function loadExerciseHistory(exerciseId: string): Promise<ExerciseH
 }
 
 export async function loadSetWithContext(setId: string): Promise<HistorySetRow | null> {
-  const [set, manufacturers] = await Promise.all([
+  const [set, manufacturers, video] = await Promise.all([
     SetRepo.getSetById(setId),
     ReferenceRepo.listManufacturers(),
+    SetVideoRepo.getSetVideoBySetId(setId),
   ]);
   const manufacturerNames = new Map(manufacturers.map((m) => [m.id, m.name]));
-  return enrichSetRow(set, manufacturerNames);
+  const videos = new Map<string, SetVideo>();
+  if (video) videos.set(video.setId, video);
+  return enrichSetRow(set, manufacturerNames, videos);
 }
