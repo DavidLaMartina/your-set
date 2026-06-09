@@ -10,7 +10,6 @@ import type {
   SessionInstanceExercise,
   SessionStatus,
   Set,
-  SetType,
   SetVideo,
   VideoAvailabilityStatus,
 } from '@/types/domain';
@@ -118,8 +117,6 @@ export function mapSetRow(row: SetRow): Set {
     sortOrder: row.sort_order,
     weight: row.weight,
     reps: row.reps,
-    rir: row.rir,
-    setType: row.set_type as SetType,
     manufacturerId: row.manufacturer_id,
     notes: row.notes,
     createdAt: row.created_at,

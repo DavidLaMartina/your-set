@@ -6,7 +6,6 @@ import { LogSetForm } from '@/components/log-set-form';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { StackHeader } from '@/components/stack-header';
-import { SetTypeBadge } from '@/components/set-type-badge';
 import { SetVideoSection } from '@/components/set-video-section';
 import { AppText } from '@/components/ui/app-text';
 import { formatPerformedAt, formatSetLabel } from '@/lib/format';
@@ -22,11 +21,12 @@ import {
   removeVideoFromSet,
   resolveAndPersistSetVideo,
 } from '@/features/video/services/set-video-service';
+import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
 import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
 import { setCompareHref } from '@/lib/navigation';
 import { spacing } from '@/lib/theme/tokens';
+import { implementUsesManufacturer } from '@/types/domain';
 import type { HistorySetRow, Manufacturer, SetVideo } from '@/types/domain';
-import { SET_TYPE_LABELS } from '@/types/domain';
 
 type Mode = 'view' | 'edit';
 
@@ -34,6 +34,7 @@ export default function SetDetailScreen() {
   const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
   const [set, setSet] = useState<HistorySetRow | null>(null);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const [showManufacturer, setShowManufacturer] = useState(false);
   const [form, setForm] = useState<LogSetFormValues | null>(null);
   const [mode, setMode] = useState<Mode>(edit === '1' ? 'edit' : 'view');
   const [loading, setLoading] = useState(true);
@@ -53,7 +54,11 @@ export default function SetDetailScreen() {
       if (cancelled) return;
       setSet(row);
       setManufacturers(mfrs);
-      if (row) setForm(logSetFormFromSet(row));
+      if (row) {
+        setForm(logSetFormFromSet(row));
+        const exercise = await ExerciseRepo.getExerciseById(row.exerciseId);
+        if (!cancelled) setShowManufacturer(implementUsesManufacturer(exercise?.implementId));
+      }
       setLoading(false);
       if (row?.video) {
         const refreshed = await resolveAndPersistSetVideo(id);
@@ -109,9 +114,9 @@ export default function SetDetailScreen() {
 
   const handleSave = useCallback(async () => {
     if (!id || !set || !form || saving) return;
-    const weight = form.weight.trim();
-    const reps = form.reps.trim();
-    if (!weight && !reps) {
+    const hasWeight = form.weight.trim().length > 0;
+    const hasReps = form.reps.trim().length > 0;
+    if (!hasWeight && !hasReps) {
       Alert.alert('Add weight or reps', 'Enter at least one value to save this set.');
       return;
     }
@@ -173,7 +178,12 @@ export default function SetDetailScreen() {
     return (
       <Screen>
         <StackHeader title="Edit set" subtitle={set.sessionName ?? undefined} />
-        <LogSetForm values={form} onChange={setForm} manufacturers={manufacturers} />
+        <LogSetForm
+          values={form}
+          onChange={setForm}
+          manufacturers={manufacturers}
+          showManufacturer={showManufacturer}
+        />
         {videoSection}
         <View style={styles.actions}>
           <PrimaryButton
@@ -191,7 +201,6 @@ export default function SetDetailScreen() {
       <StackHeader title="Set detail" />
       <View style={styles.stats}>
         <AppText variant="titleLarge">{formatSetLabel(set.weight, set.reps)}</AppText>
-        {set.setType !== 'straight' ? <SetTypeBadge setType={set.setType} /> : null}
       </View>
 
       <Metadata label="Performed" value={formatPerformedAt(set.performedAt)} />
@@ -199,11 +208,9 @@ export default function SetDetailScreen() {
         label="Session"
         value={set.sessionInstanceId ? set.sessionName ?? 'In session' : 'None (set-only log)'}
       />
-      <Metadata label="Set type" value={SET_TYPE_LABELS[set.setType]} />
       {set.manufacturerName ? (
         <Metadata label="Manufacturer" value={set.manufacturerName} />
       ) : null}
-      {set.rir != null ? <Metadata label="RIR" value={String(set.rir)} /> : null}
       {set.notes ? <Metadata label="Notes" value={set.notes} /> : null}
 
       {videoSection}

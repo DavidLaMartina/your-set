@@ -5,7 +5,6 @@ import { StyleSheet, View } from 'react-native';
 import { Card } from '@/components/card';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
-import { SetTypeBadge } from '@/components/set-type-badge';
 import { VideoBadge } from '@/components/video-badge';
 import { AppText } from '@/components/ui/app-text';
 import { listRecentSets, type RecentSetRow } from '@/features/sets/services/recent-sets-service';
@@ -72,8 +71,9 @@ function RecentSetCard({ row }: { row: RecentSetRow }) {
     <Card onPress={() => router.push(setDetailHref(row.id))}>
       <View style={styles.setRow}>
         <View style={styles.setMain}>
-          <AppText variant="dataLarge">{formatSetLabel(row.weight, row.reps)}</AppText>
-          {row.setType !== 'straight' ? <SetTypeBadge setType={row.setType} /> : null}
+          <AppText variant="dataLarge">
+            {formatSetLabel(row.weight, row.reps)}
+          </AppText>
           <VideoBadge status={videoStatus} compact />
         </View>
         <AppText variant="body">{row.exerciseName}</AppText>
@@ -82,7 +82,6 @@ function RecentSetCard({ row }: { row: RecentSetRow }) {
           {row.manufacturerName ? ` · ${row.manufacturerName}` : ''}
           {' · '}
           {formatPerformedAt(row.performedAt)}
-          {row.rir != null ? ` · RIR ${row.rir}` : ''}
         </AppText>
       </View>
     </Card>

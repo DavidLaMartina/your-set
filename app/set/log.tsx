@@ -21,6 +21,7 @@ import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
 import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
 import { setDetailHref, setsTabHref } from '@/lib/navigation';
 import { spacing } from '@/lib/theme/tokens';
+import { implementUsesManufacturer } from '@/types/domain';
 import type { Manufacturer } from '@/types/domain';
 
 export default function LogSetScreen() {
@@ -36,6 +37,7 @@ export default function LogSetScreen() {
   const [subtitle, setSubtitle] = useState<string | undefined>();
   const [form, setForm] = useState<LogSetFormValues>(emptyLogSetForm());
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const [showManufacturer, setShowManufacturer] = useState(false);
   const [stagedVideo, setStagedVideo] = useState<PickedVideo | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -53,6 +55,7 @@ export default function LogSetScreen() {
       if (!exercise) return;
       setManufacturers(mfrs);
       setSubtitle(exercise.name);
+      setShowManufacturer(implementUsesManufacturer(exercise.implementId));
       setForm(emptyLogSetForm(lastMfr));
     } finally {
       setLoading(false);
@@ -87,9 +90,9 @@ export default function LogSetScreen() {
 
   const handleSave = async () => {
     if (!exerciseId) return;
-    const weight = form.weight.trim();
-    const reps = form.reps.trim();
-    if (!weight && !reps) {
+    const hasWeight = form.weight.trim().length > 0;
+    const hasReps = form.reps.trim().length > 0;
+    if (!hasWeight && !hasReps) {
       Alert.alert('Add weight or reps', 'Enter at least one value to save this set.');
       return;
     }
@@ -150,7 +153,12 @@ export default function LogSetScreen() {
           Set-only log — not tied to an open workout.
         </AppText>
       ) : null}
-      <LogSetForm values={form} onChange={setForm} manufacturers={manufacturers} />
+      <LogSetForm
+        values={form}
+        onChange={setForm}
+        manufacturers={manufacturers}
+        showManufacturer={showManufacturer}
+      />
       <SetVideoSection
         staged={staged}
         busy={busy}

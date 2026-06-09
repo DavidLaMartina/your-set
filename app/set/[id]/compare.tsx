@@ -12,7 +12,7 @@ import { formatPerformedAt, formatSetLabel } from '@/lib/format';
 import { loadSetWithContext } from '@/features/history/services/exercise-history-service';
 import * as SetRepo from '@/lib/db/repositories/set-repository';
 import { colors, spacing } from '@/lib/theme/tokens';
-import { SET_TYPE_LABELS, type HistorySetRow } from '@/types/domain';
+import type { HistorySetRow } from '@/types/domain';
 
 export default function VideoCompareScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,7 +30,7 @@ export default function VideoCompareScreen() {
       if (current) {
         const peers = await SetRepo.listSetsByExercise(current.exerciseId);
         const prior = peers.find(
-          (s) => s.id !== current.id && s.setType === 'top_set',
+          (s) => s.id !== current.id && s.performedAt < current.performedAt,
         );
         if (prior) {
           setRight(await loadSetWithContext(prior.id));
@@ -64,11 +64,11 @@ export default function VideoCompareScreen() {
       <View style={styles.panes}>
         <ComparePane label="Selected" set={left} />
         {right ? (
-          <ComparePane label="Prior top" set={right} />
+          <ComparePane label="Prior set" set={right} />
         ) : (
           <View style={styles.pane}>
             <AppText variant="caption" muted>
-              No prior top set to compare
+              No prior set to compare
             </AppText>
           </View>
         )}
@@ -102,10 +102,6 @@ function ComparePane({ label, set }: { label: string; set: HistorySetRow }) {
         <VideoPlaceholder status={videoStatus === 'none' ? 'unknown' : videoStatus} />
       )}
       <AppText variant="dataLarge">{formatSetLabel(set.weight, set.reps)}</AppText>
-      <AppText variant="caption" muted>
-        {SET_TYPE_LABELS[set.setType]}
-        {set.rir != null ? ` · RIR ${set.rir}` : ''}
-      </AppText>
       {set.notes ? (
         <AppText variant="caption" muted numberOfLines={3}>
           {set.notes}

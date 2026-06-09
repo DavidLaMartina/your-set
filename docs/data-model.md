@@ -57,12 +57,15 @@ A future backend would add its own entities and EF migrations against the **same
 | Optional end | `session_instances.ended_at` is nullable; never required to save or view sets |
 | One time field | `performedAt` on the set is what UI and filters use for “when” |
 
-## Entity relationship (schema v6)
+## Entity relationship (schema v8)
 
 The exercise/variant split was collapsed in v5 — the **exercise is the single
 loggable unit**. Free-text muscle/equipment became foreign keys to seeded
 reference tables, with secondary muscles in a join table. In v6, manufacturer
-(equipment brand) moved to the **set**, recorded per log.
+(equipment brand) moved to the **set**, recorded per log. In v7–v8, `set_type`,
+`rir`, and any multi-bout rep storage were dropped — v1 logging is **weight ×
+reps** only. Extra context (RIR, cluster notes, etc.) belongs in notes/tags
+later. Manufacturer dropdown is surfaced only for Machine and Smith machine.
 
 ```mermaid
 erDiagram
@@ -86,7 +89,7 @@ erDiagram
 
 ### 1. Set-first (exercise)
 
-All sets for a movement, **with or without** a session instance. Filter by date range, weight, reps, set type.
+All sets for a movement, **with or without** a session instance. Filter by date range, weight, reps.
 
 - By exercise ID: `WHERE exercise_id = ?`
 - Order: `performed_at DESC`
@@ -207,13 +210,14 @@ Table: `session_instance_exercises`.
 | Field | Type | Notes |
 |-------|------|-------|
 | exerciseId | TEXT FK | → exercises (required) |
-| manufacturerId | TEXT FK | → manufacturers.id; nullable — equipment brand **for this log** (machine, barbell, cable stack, etc.) |
+| manufacturerId | TEXT FK | → manufacturers.id; nullable — equipment brand **for this log** (machine / Smith only in v1 UI) |
 | sessionInstanceId | TEXT FK | Nullable |
 | sessionInstanceExerciseId | TEXT FK | Nullable; requires instance id |
-| performedAt | TEXT | **Canonical time** |
-| … | | weight, reps, rir, set_type, etc. |
+| performedAt | TEXT | **Canonical time** — editable in the UI |
+| weight | REAL | Nullable |
+| reps | INTEGER | Nullable |
 
-As of v5, `sets.exercise_id` references `exercises` directly (no variant layer). As of v6, `manufacturer_id` lives on the set, not the exercise — one "machine incline press" exercise, different brands per day.
+As of v5, `sets.exercise_id` references `exercises` directly (no variant layer). As of v6, `manufacturer_id` lives on the set, not the exercise. As of v7–v8, `set_type` and `rir` are gone; v1 is weight × reps only.
 
 ### SetVideo
 

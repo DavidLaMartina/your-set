@@ -3,7 +3,7 @@ import { newId } from '@/lib/db/id';
 import { mapSetRow } from '@/lib/db/map-row';
 import { isoNow } from '@/lib/db/timestamps';
 import type { SetRow } from '@/lib/db/row-types';
-import type { Set, SetListFilters, SetType } from '@/types/domain';
+import type { Set, SetListFilters } from '@/types/domain';
 import { isSetSessionLinkValid } from '@/types/set-validation';
 
 export type CreateSetInput = {
@@ -14,8 +14,6 @@ export type CreateSetInput = {
   sortOrder?: number | null;
   weight?: number | null;
   reps?: number | null;
-  rir?: number | null;
-  setType?: SetType;
   manufacturerId?: string | null;
   notes?: string | null;
 };
@@ -62,11 +60,6 @@ function buildFilterClause(
   if (filters.repsMax != null) {
     clauses.push(`${alias}.reps <= ?`);
     params.push(filters.repsMax);
-  }
-  if (filters.setTypes?.length) {
-    const placeholders = filters.setTypes.map(() => '?').join(', ');
-    clauses.push(`${alias}.set_type IN (${placeholders})`);
-    params.push(...filters.setTypes);
   }
 
   return {
@@ -122,8 +115,6 @@ export async function createSet(input: CreateSetInput): Promise<Set> {
     sortOrder: input.sortOrder ?? null,
     weight: input.weight ?? null,
     reps: input.reps ?? null,
-    rir: input.rir ?? null,
-    setType: input.setType ?? 'straight',
     manufacturerId: input.manufacturerId ?? null,
     notes: input.notes ?? null,
     createdAt: isoNow(),
@@ -139,8 +130,8 @@ export async function createSet(input: CreateSetInput): Promise<Set> {
     `INSERT INTO sets (
       id, exercise_id, performed_at,
       session_instance_id, session_instance_exercise_id,
-      sort_order, weight, reps, rir, set_type, manufacturer_id, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sort_order, weight, reps, manufacturer_id, notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     draft.id,
     draft.exerciseId,
     draft.performedAt,
@@ -149,8 +140,6 @@ export async function createSet(input: CreateSetInput): Promise<Set> {
     draft.sortOrder,
     draft.weight,
     draft.reps,
-    draft.rir,
-    draft.setType,
     draft.manufacturerId,
     draft.notes,
     draft.createdAt,
@@ -179,7 +168,7 @@ export async function updateSet(id: string, input: UpdateSetInput): Promise<Set 
     `UPDATE sets SET
       exercise_id = ?, performed_at = ?,
       session_instance_id = ?, session_instance_exercise_id = ?,
-      sort_order = ?, weight = ?, reps = ?, rir = ?, set_type = ?, manufacturer_id = ?, notes = ?, updated_at = ?
+      sort_order = ?, weight = ?, reps = ?, manufacturer_id = ?, notes = ?, updated_at = ?
      WHERE id = ?`,
     next.exerciseId,
     next.performedAt,
@@ -188,8 +177,6 @@ export async function updateSet(id: string, input: UpdateSetInput): Promise<Set 
     next.sortOrder,
     next.weight,
     next.reps,
-    next.rir,
-    next.setType,
     next.manufacturerId,
     next.notes,
     next.updatedAt,

@@ -56,7 +56,8 @@
           "savePhotosPermission": false,
           "preventAutomaticLimitedAccessAlert": true
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

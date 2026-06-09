@@ -60,7 +60,7 @@ System fonts (SF Pro on iOS). No custom font files in MVP.
 | `title.medium` | 18 | 600 | Block headers (variant name) |
 | `body` | 16 | 400 | Notes, descriptions |
 | `label` | 13 | 500 | Field labels |
-| `caption` | 12 | 400 | Timestamps, RIR |
+| `caption` | 12 | 400 | Timestamps, hints |
 | `data.large` | 20 | 600 | Weight × reps in set rows |
 | `data.mono` | 15 | 500 | Tabular numbers (tabular lining if available) |
 
@@ -97,8 +97,7 @@ Minimal shadows on dark UI. Use `bg.elevated` + `border.default` instead of heav
 ### Data display
 
 - **Card** — Elevated surface for exercise blocks
-- **SetRow** — Weight/reps inputs, set index, type badge, video affordance
-- **SetTypeBadge** — Compact chip for `top_set`, `backoff`, etc.
+- **SetRow** — Weight/reps inputs, set index, video affordance
 - **VideoBadge** — Thumbnail or icon; states: none, attached, missing
 - **MetadataRow** — Label + value pairs on Set Detail
 
@@ -106,7 +105,7 @@ Minimal shadows on dark UI. Use `bg.elevated` + `border.default` instead of heav
 
 - **DenseInput** — Numeric keyboard for weight/reps
 - **Stepper** — ±2.5 / ±5 lb plate jumps (config later)
-- **PickerSheet** — Set type, camera angle (bottom sheet)
+- **PickerSheet** — Camera angle (bottom sheet)
 
 ### Feedback
 

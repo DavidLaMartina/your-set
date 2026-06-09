@@ -40,7 +40,7 @@ Someone who already knows how to train. They want fast logging, video attachment
 | Video missing | Graceful state if user deletes asset or permissions change |
 | Exercises | Create/manage exercises (implement, muscle); manufacturer per set at log time |
 | Workouts | Start, log sets, end session |
-| Sets | Weight, reps, RIR, set type, notes |
+| Sets | Weight × reps, editable date/time, manufacturer (machine / Smith), notes |
 | History | Per-exercise history, comparable sets, filters |
 | Compare | Side-by-side video of current vs prior set |
 | Platform | iOS-first; Android secondary; web not a priority |

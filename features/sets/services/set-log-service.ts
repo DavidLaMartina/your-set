@@ -1,7 +1,7 @@
 import * as SetRepo from '@/lib/db/repositories/set-repository';
 import * as InstanceExerciseRepo from '@/lib/db/repositories/session-instance-exercise-repository';
 import { isoNow } from '@/lib/db/timestamps';
-import type { Set, SetType } from '@/types/domain';
+import type { Set } from '@/types/domain';
 
 export type LogSetInput = {
   exerciseId: string;
@@ -9,8 +9,6 @@ export type LogSetInput = {
   sessionInstanceExerciseId?: string | null;
   weight?: number | null;
   reps?: number | null;
-  rir?: number | null;
-  setType?: SetType;
   manufacturerId?: string | null;
   notes?: string | null;
   performedAt?: string;
@@ -20,20 +18,22 @@ export type LogSetInput = {
 export type LogSetFormValues = {
   weight: string;
   reps: string;
-  rir: string;
-  setType: SetType;
   manufacturerId: string | null;
   notes: string;
+  /** ISO timestamp; editable, defaults to now on create. */
+  performedAt: string;
 };
 
-export function emptyLogSetForm(manufacturerId: string | null = null): LogSetFormValues {
+export function emptyLogSetForm(
+  manufacturerId: string | null = null,
+  performedAt: string = isoNow(),
+): LogSetFormValues {
   return {
     weight: '',
     reps: '',
-    rir: '',
-    setType: 'straight',
     manufacturerId,
     notes: '',
+    performedAt,
   };
 }
 
@@ -41,10 +41,9 @@ export function logSetFormFromSet(set: Set): LogSetFormValues {
   return {
     weight: set.weight != null ? String(set.weight) : '',
     reps: set.reps != null ? String(set.reps) : '',
-    rir: set.rir != null ? String(set.rir) : '',
-    setType: set.setType,
     manufacturerId: set.manufacturerId,
     notes: set.notes ?? '',
+    performedAt: set.performedAt,
   };
 }
 
@@ -93,8 +92,6 @@ export async function createLoggedSet(input: LogSetInput): Promise<Set> {
     sortOrder,
     weight: input.weight ?? null,
     reps: input.reps ?? null,
-    rir: input.rir ?? null,
-    setType: input.setType ?? 'straight',
     manufacturerId: input.manufacturerId ?? null,
     notes: input.notes ?? null,
   });
@@ -102,18 +99,15 @@ export async function createLoggedSet(input: LogSetInput): Promise<Set> {
 
 export async function updateLoggedSet(
   setId: string,
-  input: Omit<LogSetInput, 'exerciseId' | 'performedAt' | 'sortOrder'> & {
-    exerciseId?: string;
-  },
+  input: Omit<LogSetInput, 'sortOrder'> & { exerciseId?: string },
 ): Promise<Set | null> {
   return SetRepo.updateSet(setId, {
     exerciseId: input.exerciseId,
+    performedAt: input.performedAt,
     sessionInstanceId: input.sessionInstanceId,
     sessionInstanceExerciseId: input.sessionInstanceExerciseId,
     weight: input.weight,
     reps: input.reps,
-    rir: input.rir,
-    setType: input.setType,
     manufacturerId: input.manufacturerId,
     notes: input.notes,
   });
@@ -127,10 +121,9 @@ export function formValuesToLogInput(
     ...base,
     weight: parseOptionalFloat(form.weight),
     reps: parseOptionalInt(form.reps),
-    rir: parseOptionalInt(form.rir),
-    setType: form.setType,
     manufacturerId: form.manufacturerId,
     notes: form.notes.trim() || null,
+    performedAt: form.performedAt,
   };
 }
 

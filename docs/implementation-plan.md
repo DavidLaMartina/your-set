@@ -223,7 +223,7 @@ Users must be able to **add exercises (variants) to a session** so every workout
 ### B — Log inside an open workout (`/session/[id]`)
 
 1. **+ Set** on each instance block — create row with `session_instance_id` + `session_instance_exercise_id`, `performed_at` = now
-2. Form: weight, reps, RIR, set type, notes
+2. Form: weight × reps, date/time, manufacturer (machine / Smith), notes
 3. **+ Exercise to workout** — add `session_instance_exercise` (ad-hoc block) then log sets
 4. Edit / delete set (delete optional if swipe exists elsewhere)
 

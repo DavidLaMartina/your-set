@@ -4,7 +4,6 @@ import { setDetailHref } from '@/lib/navigation';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { DenseInput } from '@/components/dense-input';
-import { SetTypeBadge } from '@/components/set-type-badge';
 import { VideoBadge } from '@/components/video-badge';
 import { AppText } from '@/components/ui/app-text';
 import { colors, spacing } from '@/lib/theme/tokens';
@@ -51,14 +50,6 @@ export function SetRow({ set, index, onPress }: SetRowProps) {
           editable={false}
         />
       </View>
-      <View style={styles.meta}>
-        {set.setType !== 'straight' ? <SetTypeBadge setType={set.setType} /> : null}
-        {set.rir != null ? (
-          <AppText variant="caption" muted>
-            RIR {set.rir}
-          </AppText>
-        ) : null}
-      </View>
       <VideoBadge status={videoStatus} compact />
     </Pressable>
   );
@@ -90,11 +81,5 @@ const styles = StyleSheet.create({
   },
   times: {
     marginTop: 2,
-  },
-  meta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    flexShrink: 1,
   },
 });

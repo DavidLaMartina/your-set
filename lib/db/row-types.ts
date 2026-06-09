@@ -86,8 +86,6 @@ export type SetRow = {
   sort_order: number | null;
   weight: number | null;
   reps: number | null;
-  rir: number | null;
-  set_type: string;
   manufacturer_id: string | null;
   notes: string | null;
   created_at: string;

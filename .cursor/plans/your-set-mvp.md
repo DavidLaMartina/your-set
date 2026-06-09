@@ -25,7 +25,7 @@
 | `/(tabs)/workouts` | **Instances** — open, start visit, recent, swipe delete |
 | `/(tabs)/exercises` | Exercises by recent `performed_at` (flat — no variants) |
 | `/(tabs)/sets` | Global recent sets, `performed_at` DESC |
-| `/set/log` | **Create** a set (workout or set-only); keyed on `exerciseId`; weight/reps/RIR, set type, manufacturer chips, **attach video** (staged → persisted on save) |
+| `/set/log` | **Create** a set (workout or set-only); keyed on `exerciseId`; weight × reps, editable date/time, manufacturer dropdown (machine / Smith only), notes, **attach video** (staged → persisted on save) |
 | `/picker/exercise` | Add exercise to session lineup, workout, or log-set |
 | `/exercises/new` | Create or edit exercise (implement / muscle pickers) |
 | `/exercises/[id]` | Exercise detail = set history + manage |
@@ -145,6 +145,7 @@ Attach a video from the device photo library to a set, play it back in-app, and 
 
 | Date | Change |
 |------|--------|
+| 2026-06-08 | Schema v7–v8: dropped `set_type`, `rir`; v1 is weight × reps only. Set form has editable date/time and manufacturer dropdown (machine / Smith). Notes/tags reserved for richer searchable metadata later. |
 | 2026-06-08 | Unified set detail + edit into one view↔edit screen; added video attach to the log flow (staged → persisted on save); orientation-aware playback via thumbnail measurement. |
 | 2026-06-07 | Schema v6: manufacturer moved exercise → set (`sets.manufacturer_id`); migration uses DROP+rename swaps + stale-parent FK repair. Phase 4 local video started. |
 | 2026-06-06 | Schema v5: flatten exercise/variant → single `exercises` table with implement/muscle/manufacturer FKs + secondary-muscle join; routes `/picker/exercise`, `/exercises/[id]` history |

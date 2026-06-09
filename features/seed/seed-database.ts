@@ -101,8 +101,6 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     sortOrder: 1,
     weight: 185,
     reps: 8,
-    rir: 1,
-    setType: 'top_set',
   });
   await SetRepo.createSet({
     exerciseId: smithIncline.id,
@@ -112,8 +110,6 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     sortOrder: 2,
     weight: 175,
     reps: 10,
-    rir: 2,
-    setType: 'backoff',
   });
   await SetRepo.createSet({
     exerciseId: smithIncline.id,
@@ -123,7 +119,6 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     sortOrder: 3,
     weight: 165,
     reps: 12,
-    setType: 'backoff',
   });
 
   await SetRepo.createSet({
@@ -134,7 +129,6 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     sortOrder: 1,
     weight: 140,
     reps: 10,
-    setType: 'top_set',
   });
 
   await SetRepo.createSet({
@@ -155,8 +149,6 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     sortOrder: 1,
     weight: 180,
     reps: 8,
-    rir: 2,
-    setType: 'top_set',
     notes: 'Prior top — demo compare target',
   });
 

@@ -1,33 +1,3 @@
-export const SET_TYPES = [
-  'straight',
-  'top_set',
-  'backoff',
-  'rest_pause',
-  'myo_rep',
-  'cluster',
-  'drop_set',
-  'partials',
-  'bfr',
-  'forced_reps',
-  'other',
-] as const;
-
-export type SetType = (typeof SET_TYPES)[number];
-
-export const SET_TYPE_LABELS: Record<SetType, string> = {
-  straight: 'Straight',
-  top_set: 'Top',
-  backoff: 'Backoff',
-  rest_pause: 'Rest-pause',
-  myo_rep: 'Myo',
-  cluster: 'Cluster',
-  drop_set: 'Drop',
-  partials: 'Partials',
-  bfr: 'BFR',
-  forced_reps: 'Forced',
-  other: 'Other',
-};
-
 export const CAMERA_ANGLES = [
   'front',
   'side',
@@ -66,6 +36,16 @@ export type Manufacturer = {
   id: string;
   name: string;
 };
+
+/**
+ * Implements whose sets surface an equipment manufacturer dropdown (v1: machine
+ * and Smith only; cable / other branded gear can be added in a later pass).
+ */
+export const MANUFACTURER_IMPLEMENT_IDS = new Set<string>(['imp-machine', 'imp-smith']);
+
+export function implementUsesManufacturer(implementId: string | null | undefined): boolean {
+  return implementId != null && MANUFACTURER_IMPLEMENT_IDS.has(implementId);
+}
 
 export const EXERCISE_ORIGINS = ['stock', 'custom'] as const;
 export type ExerciseOrigin = (typeof EXERCISE_ORIGINS)[number];
@@ -162,9 +142,7 @@ export type Set = {
   sortOrder: number | null;
   weight: number | null;
   reps: number | null;
-  rir: number | null;
-  setType: SetType;
-  /** Equipment brand for this log (machine, barbell, cable stack, etc.). */
+  /** Equipment brand for this log (machine / Smith rack). */
   manufacturerId: string | null;
   notes: string | null;
   createdAt: string;
@@ -197,7 +175,6 @@ export type SetListFilters = {
   weightMax?: number;
   repsMin?: number;
   repsMax?: number;
-  setTypes?: SetType[];
 };
 
 /** Enriched types for UI */

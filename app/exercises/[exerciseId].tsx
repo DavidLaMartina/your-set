@@ -6,7 +6,6 @@ import { Card } from '@/components/card';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { StackHeader } from '@/components/stack-header';
-import { SetTypeBadge } from '@/components/set-type-badge';
 import { VideoBadge } from '@/components/video-badge';
 import { AppText } from '@/components/ui/app-text';
 import { loadExerciseHistory } from '@/features/history/services/exercise-history-service';
@@ -153,8 +152,9 @@ function HistorySetCard({ row }: { row: HistorySetRow }) {
       onPress={() => router.push(setDetailHref(row.id))}
       headerRight={<VideoBadge status={videoStatus} compact />}>
       <View style={styles.setRow}>
-        <AppText variant="dataLarge">{formatSetLabel(row.weight, row.reps)}</AppText>
-        {row.setType !== 'straight' ? <SetTypeBadge setType={row.setType} /> : null}
+        <AppText variant="dataLarge">
+          {formatSetLabel(row.weight, row.reps)}
+        </AppText>
       </View>
       <AppText variant="caption" muted>
         {formatPerformedAt(row.performedAt)}
@@ -164,7 +164,6 @@ function HistorySetCard({ row }: { row: HistorySetRow }) {
             : ' · Session'
           : ' · No workout'}
         {row.manufacturerName ? ` · ${row.manufacturerName}` : ''}
-        {row.rir != null ? ` · RIR ${row.rir}` : ''}
       </AppText>
     </Card>
   );

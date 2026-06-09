@@ -43,11 +43,11 @@ export async function loadExerciseHistory(exerciseId: string): Promise<ExerciseH
     await Promise.all(sets.map((s) => enrichSetRow(s, manufacturerNames, videos)))
   ).filter((r): r is HistorySetRow => r != null);
 
-  const bestSets = [...recentSets]
-    .sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0))
-    .slice(0, 3);
-
-  const comparableSets = recentSets.filter((s) => s.setType === 'top_set').slice(0, 10);
+  const byWeightThenReps = [...recentSets].sort(
+    (a, b) => (b.weight ?? 0) - (a.weight ?? 0) || (b.reps ?? 0) - (a.reps ?? 0),
+  );
+  const bestSets = byWeightThenReps.slice(0, 3);
+  const comparableSets = byWeightThenReps.slice(0, 10);
 
   return { exercise, recentSets, bestSets, comparableSets };
 }
