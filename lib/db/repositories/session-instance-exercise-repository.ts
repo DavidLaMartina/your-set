@@ -9,6 +9,7 @@ export type CreateSessionInstanceExerciseInput = {
   sessionInstanceId: string;
   exerciseId: string;
   sortOrder: number;
+  manufacturerId?: string | null;
   notes?: string | null;
 };
 
@@ -31,12 +32,14 @@ export async function createSessionInstanceExercise(
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO session_instance_exercises (
-      id, session_instance_id, exercise_id, sort_order, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      id, session_instance_id, exercise_id, sort_order, manufacturer_id, notes,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     input.sessionInstanceId,
     input.exerciseId,
     input.sortOrder,
+    input.manufacturerId ?? null,
     input.notes ?? null,
     now,
     now,
@@ -73,6 +76,19 @@ export async function getNextInstanceExerciseSortOrder(
     sessionInstanceId,
   );
   return (row?.max_order ?? -1) + 1;
+}
+
+export async function updateSessionInstanceExerciseManufacturer(
+  id: string,
+  manufacturerId: string | null,
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE session_instance_exercises SET manufacturer_id = ?, updated_at = ? WHERE id = ?',
+    manufacturerId,
+    isoNow(),
+    id,
+  );
 }
 
 export async function findInstanceBlockByExercise(

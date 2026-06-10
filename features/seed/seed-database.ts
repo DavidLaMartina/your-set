@@ -18,6 +18,13 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   );
   if ((row?.count ?? 0) > 0) return false;
 
+  const machineIncline = await ExerciseRepo.createExercise({
+    name: 'Machine incline press',
+    implementId: 'imp-machine',
+    primaryMuscleId: 'mus-upper-chest',
+    notes: 'Bench ~75°, feet flat, slight arch',
+    secondaryMuscleIds: ['mus-front-delts', 'mus-triceps'],
+  });
   const smithIncline = await ExerciseRepo.createExercise({
     name: 'Smith high incline press',
     implementId: 'imp-smith',
@@ -52,12 +59,13 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
 
   await SessionExerciseRepo.createSessionExercise({
     sessionId: pushA.id,
-    exerciseId: smithIncline.id,
+    exerciseId: machineIncline.id,
     sortOrder: 0,
     targetSets: 3,
     targetRepsMin: 8,
     targetRepsMax: 12,
     targetWeight: 185,
+    manufacturerId: 'mfr-prime',
   });
   await SessionExerciseRepo.createSessionExercise({
     sessionId: pushA.id,
@@ -77,10 +85,11 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
     bodyweight: 185,
   });
 
-  const blockSmith = await SessionInstanceExerciseRepo.createSessionInstanceExercise({
+  const blockMachine = await SessionInstanceExerciseRepo.createSessionInstanceExercise({
     sessionInstanceId: instance.id,
-    exerciseId: smithIncline.id,
+    exerciseId: machineIncline.id,
     sortOrder: 0,
+    manufacturerId: 'mfr-prime',
   });
   const blockRow = await SessionInstanceExerciseRepo.createSessionInstanceExercise({
     sessionInstanceId: instance.id,
@@ -94,31 +103,34 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   const t2 = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
 
   await SetRepo.createSet({
-    exerciseId: smithIncline.id,
+    exerciseId: machineIncline.id,
     performedAt: t0,
     sessionInstanceId: instance.id,
-    sessionInstanceExerciseId: blockSmith.id,
+    sessionInstanceExerciseId: blockMachine.id,
     sortOrder: 1,
     weight: 185,
     reps: 8,
+    manufacturerId: 'mfr-prime',
   });
   await SetRepo.createSet({
-    exerciseId: smithIncline.id,
+    exerciseId: machineIncline.id,
     performedAt: t1,
     sessionInstanceId: instance.id,
-    sessionInstanceExerciseId: blockSmith.id,
+    sessionInstanceExerciseId: blockMachine.id,
     sortOrder: 2,
     weight: 175,
     reps: 10,
+    manufacturerId: 'mfr-prime',
   });
   await SetRepo.createSet({
-    exerciseId: smithIncline.id,
+    exerciseId: machineIncline.id,
     performedAt: t2,
     sessionInstanceId: instance.id,
-    sessionInstanceExerciseId: blockSmith.id,
+    sessionInstanceExerciseId: blockMachine.id,
     sortOrder: 3,
     weight: 165,
     reps: 12,
+    manufacturerId: 'mfr-prime',
   });
 
   await SetRepo.createSet({
@@ -142,13 +154,14 @@ export async function seedDatabaseIfEmpty(): Promise<boolean> {
   });
 
   await SetRepo.createSet({
-    exerciseId: smithIncline.id,
+    exerciseId: machineIncline.id,
     performedAt: '2026-03-12T18:30:00.000Z',
     sessionInstanceId: instance.id,
-    sessionInstanceExerciseId: blockSmith.id,
+    sessionInstanceExerciseId: blockMachine.id,
     sortOrder: 1,
     weight: 180,
     reps: 8,
+    manufacturerId: 'mfr-prime',
     notes: 'Prior top — demo compare target',
   });
 

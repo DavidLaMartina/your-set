@@ -1,30 +1,41 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { Pressable, ScrollView, StyleSheet, View, type View as ViewType } from 'react-native';
 
 import { Card } from '@/components/card';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { StackHeader } from '@/components/stack-header';
-import { SetRow } from '@/components/set-row';
+import { WorkoutSetRow } from '@/components/workout-set-row';
 import { AppText } from '@/components/ui/app-text';
 import { loadSessionInstanceView } from '@/features/sessions/services/session-instance-view-service';
 import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
-import { formatWorkoutElapsed } from '@/lib/format';
+import { formatExerciseDisplayName, formatSetLabel, formatWorkoutElapsed } from '@/lib/format';
 import {
   deleteWorkout,
   getWorkoutDeleteSummary,
 } from '@/features/sessions/services/workouts-tab-service';
+import { deleteWorkoutSet } from '@/features/sets/services/set-log-service';
 import { confirmDestructive } from '@/lib/confirm-delete';
-import { exerciseDetailHref, exercisePickerHref, logSetHref, sessionDefinitionHref } from '@/lib/navigation';
+import { setDeleteNeedsConfirmation } from '@/lib/set-delete';
+import {
+  editSetHref,
+  exerciseDetailHref,
+  exercisePickerHref,
+  sessionDefinitionHref,
+} from '@/lib/navigation';
+import { scrollIntoViewAboveKeyboard } from '@/lib/scroll-into-view';
 import { colors, spacing } from '@/lib/theme/tokens';
-import type { SessionInstanceView } from '@/types/domain';
+import { isWorkoutEditable, type SessionExerciseBlock, type SessionInstanceView } from '@/types/domain';
 
 export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [session, setSession] = useState<SessionInstanceView | null>(null);
   const [loading, setLoading] = useState(true);
+  const [draftBlockId, setDraftBlockId] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollYRef = useRef(0);
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -45,6 +56,20 @@ export default function SessionDetailScreen() {
   const handleEnd = async () => {
     if (!id) return;
     await SessionInstanceRepo.endSessionInstance(id);
+    setDraftBlockId(null);
+    await refresh();
+  };
+
+  const handleUnlock = async () => {
+    if (!id) return;
+    await SessionInstanceRepo.unlockSessionInstanceForEditing(id);
+    await refresh();
+  };
+
+  const handleLock = async () => {
+    if (!id) return;
+    await SessionInstanceRepo.lockSessionInstanceEditing(id);
+    setDraftBlockId(null);
     await refresh();
   };
 
@@ -69,6 +94,54 @@ export default function SessionDetailScreen() {
         },
       });
     })();
+  };
+
+  useEffect(() => {
+    if (!draftBlockId) return;
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [draftBlockId]);
+
+  const handleAddSet = (blockId: string) => {
+    setDraftBlockId(blockId);
+  };
+
+  const handleInputFocus = useCallback((rowRef: RefObject<ViewType | null>) => {
+    scrollIntoViewAboveKeyboard(scrollRef, rowRef, () => scrollYRef.current);
+  }, []);
+
+  const handleOpenSetDetail = useCallback((setId: string) => {
+    setDraftBlockId(null);
+    router.push(editSetHref(setId, { returnTo: 'workout' }));
+  }, []);
+
+  const handleSetSaved = async () => {
+    setDraftBlockId(null);
+    await refresh();
+  };
+
+  const handleDeleteSet = (setId: string, block: SessionExerciseBlock) => {
+    if (!id) return;
+    const set = block.sets.find((s) => s.id === setId);
+    if (!set) return;
+
+    const remove = async () => {
+      await deleteWorkoutSet(setId, id);
+      await refresh();
+    };
+
+    if (setDeleteNeedsConfirmation(set)) {
+      confirmDestructive({
+        title: `Delete ${formatSetLabel(set.weight, set.reps)}?`,
+        message: 'This set has notes or a video attached.',
+        onConfirm: remove,
+      });
+      return;
+    }
+
+    void remove();
   };
 
   if (!id) {
@@ -99,10 +172,15 @@ export default function SessionDetailScreen() {
   }
 
   const isOpen = session.endedAt == null;
+  const editable = isWorkoutEditable(session);
   const title = session.sessionName ?? 'Ad-hoc workout';
 
   return (
-    <Screen>
+    <Screen
+      ref={scrollRef}
+      onScroll={(e) => {
+        scrollYRef.current = e.nativeEvent.contentOffset.y;
+      }}>
       <StackHeader
         title={title}
         subtitle={isOpen ? formatWorkoutElapsed(session.startedAt) : 'Ended'}
@@ -130,7 +208,15 @@ export default function SessionDetailScreen() {
 
       {isOpen ? (
         <PrimaryButton label="End workout" variant="ghost" onPress={() => void handleEnd()} />
-      ) : null}
+      ) : editable ? (
+        <PrimaryButton label="Lock workout" variant="ghost" onPress={() => void handleLock()} />
+      ) : (
+        <PrimaryButton
+          label="Edit workout"
+          variant="ghost"
+          onPress={() => void handleUnlock()}
+        />
+      )}
       <PrimaryButton label="Delete workout" variant="ghost" onPress={handleDelete} />
 
       {session.blocks.length === 0 ? (
@@ -139,43 +225,96 @@ export default function SessionDetailScreen() {
         </AppText>
       ) : null}
 
-      {session.blocks.map((block) => (
-        <Card
-          key={block.id}
-          title={block.exercise.name}
-          onHeaderPress={() => router.push(exerciseDetailHref(block.exerciseId))}
-          headerRight={
-            <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
-          }>
-          {block.notes ? (
-            <AppText variant="caption" muted>
-              {block.notes}
-            </AppText>
-          ) : null}
-          <View style={styles.setList}>
-            {block.sets.map((set, i) => (
-              <SetRow key={set.id} set={set} index={i + 1} />
-            ))}
-          </View>
-          {isOpen ? (
-            <PrimaryButton
-              label="+ Set"
-              variant="ghost"
-              onPress={() =>
-                router.push(
-                  logSetHref({
+      {session.blocks.map((block) => {
+        const displayTitle = formatExerciseDisplayName(
+          block.exercise.name,
+          block.manufacturerName,
+        );
+        const showManufacturerCaption =
+          block.manufacturerName != null &&
+          !/\bmachine\b/i.test(block.exercise.name);
+
+        return (
+          <Card
+            key={block.id}
+            title={displayTitle}
+            onHeaderPress={() => router.push(exerciseDetailHref(block.exerciseId))}
+            headerRight={
+              <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
+            }>
+            {showManufacturerCaption ? (
+              <AppText variant="caption" muted>
+                {block.manufacturerName}
+              </AppText>
+            ) : null}
+            {block.notes ? (
+              <AppText variant="caption" muted>
+                {block.notes}
+              </AppText>
+            ) : null}
+            <View style={styles.setList}>
+              {block.sets.map((set, i) => (
+                <WorkoutSetRow
+                  key={set.id}
+                  index={i + 1}
+                  setId={set.id}
+                  initialWeight={set.weight}
+                  initialReps={set.reps}
+                  videoStatus={set.video?.availabilityStatus ?? 'none'}
+                  editable={editable}
+                  logContext={{
                     exerciseId: block.exerciseId,
                     sessionInstanceId: id,
                     sessionInstanceExerciseId: block.id,
-                  }),
-                )
-              }
-            />
-          ) : null}
-        </Card>
-      ))}
+                  }}
+                  onInputFocus={handleInputFocus}
+                  onSaved={handleSetSaved}
+                  onOpenDetail={handleOpenSetDetail}
+                  onDelete={
+                    editable
+                      ? () => handleDeleteSet(set.id, block)
+                      : undefined
+                  }
+                />
+              ))}
+              {draftBlockId === block.id ? (
+                <WorkoutSetRow
+                  key="draft"
+                  index={block.sets.length + 1}
+                  setId={null}
+                  initialWeight={null}
+                  initialReps={null}
+                  videoStatus="none"
+                  editable={editable}
+                  focusWeight
+                  onInputFocus={handleInputFocus}
+                  logContext={{
+                    exerciseId: block.exerciseId,
+                    sessionInstanceId: id,
+                    sessionInstanceExerciseId: block.id,
+                  }}
+                  onSaved={handleSetSaved}
+                  onOpenDetail={handleOpenSetDetail}
+                  onDelete={
+                    editable ? () => setDraftBlockId(null) : undefined
+                  }
+                />
+              ) : null}
+            </View>
+            {editable ? (
+              <Pressable
+                onPress={() => handleAddSet(block.id)}
+                style={styles.addSet}
+                accessibilityRole="button"
+                accessibilityLabel="Add set">
+                <Ionicons name="add-circle-outline" size={28} color={colors.accent.primary} />
+              </Pressable>
+            ) : null}
+          </Card>
+        );
+      })}
 
-      {isOpen ? (
+      {editable ? (
         <PrimaryButton
           label="+ Exercise to workout"
           variant="ghost"
@@ -192,5 +331,9 @@ const styles = StyleSheet.create({
   },
   setList: {
     gap: spacing.xs,
+  },
+  addSet: {
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.xs,
   },
 });

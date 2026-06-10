@@ -11,6 +11,7 @@ import { deleteExercise } from '@/features/exercises/services/library-service';
 import { deleteLoggedSet } from '@/features/sets/services/set-log-service';
 import { listRecentSets, type RecentSetRow } from '@/features/sets/services/recent-sets-service';
 import { confirmDestructive } from '@/lib/confirm-delete';
+import { setDeleteNeedsConfirmation } from '@/lib/set-delete';
 import { formatSetLabel } from '@/lib/format';
 import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
 import { editExerciseHref, logSetHref } from '@/lib/navigation';
@@ -48,14 +49,21 @@ export default function ExerciseDetailScreen() {
       const row = sets.find((r) => r.id === setId);
       if (!row || row.sessionInstanceId != null) return;
 
-      confirmDestructive({
-        title: `Delete ${formatSetLabel(row.weight, row.reps)}?`,
-        message: 'This cannot be undone.',
-        onConfirm: async () => {
-          await deleteLoggedSet(setId);
-          await refresh();
-        },
-      });
+      const remove = async () => {
+        await deleteLoggedSet(setId);
+        await refresh();
+      };
+
+      if (setDeleteNeedsConfirmation(row)) {
+        confirmDestructive({
+          title: `Delete ${formatSetLabel(row.weight, row.reps)}?`,
+          message: 'This set has notes or a video attached.',
+          onConfirm: remove,
+        });
+        return;
+      }
+
+      void remove();
     },
     [sets, refresh],
   );

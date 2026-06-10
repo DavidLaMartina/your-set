@@ -38,8 +38,9 @@ export async function createSessionInstance(
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO session_instances (
-      id, session_id, started_at, ended_at, bodyweight, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
+      id, session_id, started_at, ended_at, bodyweight, notes, editing_unlocked,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, NULL, ?, ?, 0, ?, ?)`,
     id,
     input.sessionId ?? null,
     startedAt,
@@ -72,8 +73,32 @@ export async function endSessionInstance(
   const db = await getDb();
   const now = isoNow();
   await db.runAsync(
-    'UPDATE session_instances SET ended_at = ?, updated_at = ? WHERE id = ?',
+    `UPDATE session_instances
+     SET ended_at = ?, editing_unlocked = 0, updated_at = ?
+     WHERE id = ?`,
     endedAt,
+    now,
+    id,
+  );
+  return getSessionInstanceById(id);
+}
+
+export async function unlockSessionInstanceForEditing(id: string): Promise<SessionInstance | null> {
+  const db = await getDb();
+  const now = isoNow();
+  await db.runAsync(
+    'UPDATE session_instances SET editing_unlocked = 1, updated_at = ? WHERE id = ?',
+    now,
+    id,
+  );
+  return getSessionInstanceById(id);
+}
+
+export async function lockSessionInstanceEditing(id: string): Promise<SessionInstance | null> {
+  const db = await getDb();
+  const now = isoNow();
+  await db.runAsync(
+    'UPDATE session_instances SET editing_unlocked = 0, updated_at = ? WHERE id = ?',
     now,
     id,
   );

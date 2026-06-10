@@ -20,13 +20,25 @@ export function sessionDefinitionHref(sessionId: string): Href {
   return `/sessions/${sessionId}` as Href;
 }
 
-export function setDetailHref(setId: string): Href {
-  return `/set/${setId}` as Href;
+export type SetScreenReturnTo = 'workout' | 'sets';
+
+export function setDetailHref(
+  setId: string,
+  opts?: { returnTo?: SetScreenReturnTo },
+): Href {
+  if (!opts?.returnTo) return `/set/${setId}` as Href;
+  const q = new URLSearchParams({ returnTo: opts.returnTo });
+  return `/set/${setId}?${q.toString()}` as Href;
 }
 
 /** Open the set screen directly in edit mode. */
-export function editSetHref(setId: string): Href {
-  return `/set/${setId}?edit=1` as Href;
+export function editSetHref(
+  setId: string,
+  opts?: { returnTo?: SetScreenReturnTo },
+): Href {
+  const q = new URLSearchParams({ edit: '1' });
+  if (opts?.returnTo) q.set('returnTo', opts.returnTo);
+  return `/set/${setId}?${q.toString()}` as Href;
 }
 
 export function setCompareHref(setId: string): Href {

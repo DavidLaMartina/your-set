@@ -1,4 +1,5 @@
 import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
+import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
 import * as SessionRepo from '@/lib/db/repositories/session-repository';
 import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
 import * as SessionInstanceExerciseRepo from '@/lib/db/repositories/session-instance-exercise-repository';
@@ -23,7 +24,11 @@ async function enrichBlock(
     video: videos.get(set.id) ?? null,
   }));
 
-  return { ...block, exercise, sets: setsWithVideo };
+  const manufacturerName = block.manufacturerId
+    ? (await ReferenceRepo.getManufacturerById(block.manufacturerId))?.name ?? null
+    : null;
+
+  return { ...block, exercise, manufacturerName, sets: setsWithVideo };
 }
 
 export async function loadSessionInstanceView(

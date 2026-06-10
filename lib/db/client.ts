@@ -8,6 +8,7 @@ import { MIGRATION_005, SCHEMA_VERSION_005 } from '@/lib/db/migrations/005-exerc
 import { SCHEMA_VERSION_006 } from '@/lib/db/migrations/006-set-manufacturer';
 import { MIGRATION_007, SCHEMA_VERSION_007 } from '@/lib/db/migrations/007-set-reps-cleanup';
 import { applyMigration008, SCHEMA_VERSION_008 } from '@/lib/db/migrations/008-drop-rep-segments';
+import { applyMigration009, SCHEMA_VERSION_009 } from '@/lib/db/migrations/009-workout-manufacturer';
 import { migrateDataToSessionDefinitions } from '@/lib/db/migrate-data-v2';
 import {
   applyMigration006,
@@ -16,7 +17,7 @@ import {
 
 const DATABASE_NAME = 'your-set.db';
 
-export const SCHEMA_VERSION = SCHEMA_VERSION_008;
+export const SCHEMA_VERSION = SCHEMA_VERSION_009;
 
 let database: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -77,6 +78,12 @@ async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
   if (version < SCHEMA_VERSION_008) {
     await applyMigration008(db);
     await db.runAsync('INSERT INTO schema_migrations (version) VALUES (?)', SCHEMA_VERSION_008);
+    version = SCHEMA_VERSION_008;
+  }
+
+  if (version < SCHEMA_VERSION_009) {
+    await applyMigration009(db);
+    await db.runAsync('INSERT INTO schema_migrations (version) VALUES (?)', SCHEMA_VERSION_009);
   }
 }
 

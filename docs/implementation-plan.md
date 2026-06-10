@@ -222,10 +222,12 @@ Users must be able to **add exercises (variants) to a session** so every workout
 
 ### B — Log inside an open workout (`/session/[id]`)
 
-1. **+ Set** on each instance block — create row with `session_instance_id` + `session_instance_exercise_id`, `performed_at` = now
-2. Form: weight × reps, date/time, manufacturer (machine / Smith), notes
+1. **+** on each block — inline weight × reps; auto-save on blur; tap row for full edit (video, notes, per-set manufacturer)
+2. Manufacturer defaults cascade: `session_exercises` → `session_instance_exercises` → set snapshot (schema v9)
 3. **+ Exercise to workout** — add `session_instance_exercise` (ad-hoc block) then log sets
-4. Edit / delete set (delete optional if swipe exists elsewhere)
+4. Swipe delete set from workout screen; ended workouts locked until **Edit workout** unlocks (`editing_unlocked`)
+
+**Deferred — workout-level lineup changes on the fly:** swap the exercise or default manufacturer for a block mid-workout (e.g. Prime press taken → different brand/machine). Requires block-level manufacturer edit UI and/or exercise substitution on `session_instance_exercises`; not in v9 pass.
 
 ### C — Set-only logging (no workout)
 

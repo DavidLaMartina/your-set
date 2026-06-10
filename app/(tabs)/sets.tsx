@@ -9,6 +9,7 @@ import { AppText } from '@/components/ui/app-text';
 import { deleteLoggedSet } from '@/features/sets/services/set-log-service';
 import { listRecentSets, type RecentSetRow } from '@/features/sets/services/recent-sets-service';
 import { confirmDestructive } from '@/lib/confirm-delete';
+import { setDeleteNeedsConfirmation } from '@/lib/set-delete';
 import { formatSetLabel } from '@/lib/format';
 import { exercisePickerForLogSetHref } from '@/lib/navigation';
 
@@ -36,17 +37,24 @@ export default function SetsScreen() {
       const row = rows.find((r) => r.id === setId);
       if (!row || row.sessionInstanceId != null) return;
 
-      const label = formatSetLabel(row.weight, row.reps);
-      confirmDestructive({
-        title: `Delete ${label}?`,
-        message: row.exerciseName
-          ? `${row.exerciseName} — this cannot be undone.`
-          : 'This cannot be undone.',
-        onConfirm: async () => {
-          await deleteLoggedSet(setId);
-          await refresh();
-        },
-      });
+      const remove = async () => {
+        await deleteLoggedSet(setId);
+        await refresh();
+      };
+
+      if (setDeleteNeedsConfirmation(row)) {
+        const label = formatSetLabel(row.weight, row.reps);
+        confirmDestructive({
+          title: `Delete ${label}?`,
+          message: row.exerciseName
+            ? `${row.exerciseName} — this set has notes or a video attached.`
+            : 'This set has notes or a video attached.',
+          onConfirm: remove,
+        });
+        return;
+      }
+
+      void remove();
     },
     [rows, refresh],
   );

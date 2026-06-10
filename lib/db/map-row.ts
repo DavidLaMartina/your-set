@@ -74,6 +74,7 @@ export function mapSessionExerciseRow(row: SessionExerciseRow): SessionExercise 
     targetRepsMin: row.target_reps_min,
     targetRepsMax: row.target_reps_max,
     targetWeight: row.target_weight,
+    manufacturerId: row.manufacturer_id,
     prescriptionNotes: row.prescription_notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -88,6 +89,7 @@ export function mapSessionInstanceRow(row: SessionInstanceRow): SessionInstance 
     endedAt: row.ended_at,
     bodyweight: row.bodyweight,
     notes: row.notes,
+    editingUnlocked: row.editing_unlocked === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -101,6 +103,7 @@ export function mapSessionInstanceExerciseRow(
     sessionInstanceId: row.session_instance_id,
     exerciseId: row.exercise_id,
     sortOrder: row.sort_order,
+    manufacturerId: row.manufacturer_id,
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

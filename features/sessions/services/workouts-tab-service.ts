@@ -104,6 +104,7 @@ export async function startSessionFromDefinition(sessionId: string): Promise<Ses
       sessionInstanceId: instance.id,
       exerciseId: exercise.exerciseId,
       sortOrder: exercise.sortOrder,
+      manufacturerId: exercise.manufacturerId,
       notes: exercise.prescriptionNotes,
     });
   }

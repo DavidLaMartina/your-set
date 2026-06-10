@@ -1,9 +1,12 @@
 import * as SessionExerciseRepo from '@/lib/db/repositories/session-exercise-repository';
 import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
+import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
 import type { SessionExercise } from '@/types/domain';
 
 export type PlannedExerciseRow = SessionExercise & {
   exerciseName: string;
+  implementId: string | null;
+  manufacturerName: string | null;
 };
 
 export async function loadPlannedExercises(sessionId: string): Promise<PlannedExerciseRow[]> {
@@ -11,9 +14,14 @@ export async function loadPlannedExercises(sessionId: string): Promise<PlannedEx
   const rows: PlannedExerciseRow[] = [];
   for (const row of exercises) {
     const exercise = await ExerciseRepo.getExerciseById(row.exerciseId);
+    const manufacturerName = row.manufacturerId
+      ? (await ReferenceRepo.getManufacturerById(row.manufacturerId))?.name ?? null
+      : null;
     rows.push({
       ...row,
       exerciseName: exercise?.name ?? 'Unknown exercise',
+      implementId: exercise?.implementId ?? null,
+      manufacturerName,
     });
   }
   return rows;

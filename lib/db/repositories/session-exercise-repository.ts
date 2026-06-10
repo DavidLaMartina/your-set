@@ -13,6 +13,7 @@ export type CreateSessionExerciseInput = {
   targetRepsMin?: number | null;
   targetRepsMax?: number | null;
   targetWeight?: number | null;
+  manufacturerId?: string | null;
   prescriptionNotes?: string | null;
 };
 
@@ -34,9 +35,9 @@ export async function createSessionExercise(
   await db.runAsync(
     `INSERT INTO session_exercises (
       id, session_id, exercise_id, sort_order,
-      target_sets, target_reps_min, target_reps_max, target_weight, prescription_notes,
-      created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      target_sets, target_reps_min, target_reps_max, target_weight, manufacturer_id,
+      prescription_notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     input.sessionId,
     input.exerciseId,
@@ -45,6 +46,7 @@ export async function createSessionExercise(
     input.targetRepsMin ?? null,
     input.targetRepsMax ?? null,
     input.targetWeight ?? null,
+    input.manufacturerId ?? null,
     input.prescriptionNotes ?? null,
     now,
     now,
@@ -90,6 +92,32 @@ export async function getNextSessionExerciseSortOrder(sessionId: string): Promis
     sessionId,
   );
   return (row?.max_order ?? -1) + 1;
+}
+
+export async function updateSessionExerciseManufacturer(
+  id: string,
+  manufacturerId: string | null,
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE session_exercises SET manufacturer_id = ?, updated_at = ? WHERE id = ?',
+    manufacturerId,
+    isoNow(),
+    id,
+  );
+}
+
+export async function findSessionExerciseBySessionAndExercise(
+  sessionId: string,
+  exerciseId: string,
+): Promise<SessionExercise | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<SessionExerciseRow>(
+    'SELECT * FROM session_exercises WHERE session_id = ? AND exercise_id = ?',
+    sessionId,
+    exerciseId,
+  );
+  return row ? mapSessionExerciseRow(row) : null;
 }
 
 export async function sessionHasExercise(

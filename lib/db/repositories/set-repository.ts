@@ -99,7 +99,15 @@ export async function listSetsBySessionInstanceAndExercise(
   sessionInstanceId: string,
   exerciseId: string,
 ): Promise<Set[]> {
-  return listSets({ sessionInstanceId, exerciseId });
+  const db = await getDb();
+  const rows = await db.getAllAsync<SetRow>(
+    `SELECT * FROM sets
+     WHERE session_instance_id = ? AND exercise_id = ?
+     ORDER BY COALESCE(sort_order, 2147483647) ASC, performed_at ASC`,
+    sessionInstanceId,
+    exerciseId,
+  );
+  return rows.map(mapSetRow);
 }
 
 export async function createSet(input: CreateSetInput): Promise<Set> {
@@ -149,13 +157,19 @@ export async function createSet(input: CreateSetInput): Promise<Set> {
   return (await getSetById(draft.id))!;
 }
 
+function definedPatch<T extends object>(input: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(input).filter((entry): entry is [string, T[keyof T]] => entry[1] !== undefined),
+  ) as Partial<T>;
+}
+
 export async function updateSet(id: string, input: UpdateSetInput): Promise<Set | null> {
   const existing = await getSetById(id);
   if (!existing) return null;
 
   const next: Set = {
     ...existing,
-    ...input,
+    ...definedPatch(input),
     updatedAt: isoNow(),
   };
 

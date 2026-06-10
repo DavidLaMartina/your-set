@@ -57,7 +57,7 @@ A future backend would add its own entities and EF migrations against the **same
 | Optional end | `session_instances.ended_at` is nullable; never required to save or view sets |
 | One time field | `performedAt` on the set is what UI and filters use for “when” |
 
-## Entity relationship (schema v8)
+## Entity relationship (schema v9)
 
 The exercise/variant split was collapsed in v5 — the **exercise is the single
 loggable unit**. Free-text muscle/equipment became foreign keys to seeded
@@ -71,6 +71,8 @@ later. Manufacturer dropdown is surfaced only for Machine and Smith machine.
 erDiagram
   Implement ||--o{ Exercise : implement_id
   Muscle ||--o{ Exercise : primary_muscle_id
+  Manufacturer ||--o{ SessionExercise : manufacturer_id
+  Manufacturer ||--o{ SessionInstanceExercise : manufacturer_id
   Manufacturer ||--o{ Set : manufacturer_id
   Exercise ||--o{ ExerciseSecondaryMuscle : has
   Muscle ||--o{ ExerciseSecondaryMuscle : referenced_by
@@ -176,6 +178,7 @@ Default prescriptions for a definition. Copied into instance blocks when startin
 | targetSets | INTEGER | Nullable |
 | targetRepsMin / targetRepsMax | INTEGER | Nullable |
 | targetWeight | REAL | Nullable |
+| manufacturerId | TEXT FK | → manufacturers; nullable — default brand for this movement in the session |
 | prescriptionNotes | TEXT | Nullable |
 
 Table: `session_exercises`.
@@ -190,6 +193,7 @@ Table: `session_exercises`.
 | endedAt | TEXT | **Nullable** |
 | bodyweight | REAL | Nullable |
 | notes | TEXT | Nullable |
+| editingUnlocked | INTEGER | 0/1 — when ended, must be 1 to allow set edits without changing start/end times |
 
 Table: `session_instances` (migrated from `workouts` in 002).
 
@@ -201,6 +205,7 @@ Table: `session_instances` (migrated from `workouts` in 002).
 | sessionInstanceId | TEXT FK | → session_instances |
 | exerciseId | TEXT FK | → exercises |
 | sortOrder | INTEGER | |
+| manufacturerId | TEXT FK | → manufacturers; nullable — workout-level default for sets in this block |
 | notes | TEXT | Nullable |
 
 Table: `session_instance_exercises`.

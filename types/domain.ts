@@ -100,6 +100,8 @@ export type SessionExercise = {
   targetRepsMin: number | null;
   targetRepsMax: number | null;
   targetWeight: number | null;
+  /** Default equipment brand for this movement in the session (machine / Smith). */
+  manufacturerId: string | null;
   prescriptionNotes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -113,6 +115,8 @@ export type SessionInstance = {
   endedAt: string | null;
   bodyweight: number | null;
   notes: string | null;
+  /** When ended, must be true to allow set edits without changing start/end times. */
+  editingUnlocked: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -123,6 +127,8 @@ export type SessionInstanceExercise = {
   sessionInstanceId: string;
   exerciseId: string;
   sortOrder: number;
+  /** Workout-level default manufacturer for sets in this block. */
+  manufacturerId: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -185,6 +191,7 @@ export type SetWithVideo = Set & {
 
 export type SessionExerciseBlock = SessionInstanceExercise & {
   exercise: Exercise;
+  manufacturerName: string | null;
   sets: SetWithVideo[];
 };
 
@@ -193,6 +200,11 @@ export type SessionInstanceView = SessionInstance & {
   sessionName: string | null;
   blocks: SessionExerciseBlock[];
 };
+
+/** Open visits are always editable; ended visits need an explicit unlock. */
+export function isWorkoutEditable(instance: SessionInstance): boolean {
+  return instance.endedAt == null || instance.editingUnlocked;
+}
 
 /** Exercise-first history row; performedAt on Set is source of truth for date/time. */
 export type HistorySetRow = SetWithVideo & {

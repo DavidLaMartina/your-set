@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -7,19 +8,28 @@ type DenseInputProps = {
   label?: string;
   value: string;
   onChangeText?: (text: string) => void;
+  onBlur?: () => void;
+  onFocus?: () => void;
+  onSubmitEditing?: () => void;
   placeholder?: string;
   editable?: boolean;
   keyboardType?: 'numeric' | 'default';
 };
 
-export function DenseInput({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  editable = true,
-  keyboardType = 'numeric',
-}: DenseInputProps) {
+export const DenseInput = forwardRef<TextInput, DenseInputProps>(function DenseInput(
+  {
+    label,
+    value,
+    onChangeText,
+    onBlur,
+    onFocus,
+    onSubmitEditing,
+    placeholder,
+    editable = true,
+    keyboardType = 'numeric',
+  },
+  ref,
+) {
   return (
     <View style={styles.wrap}>
       {label ? (
@@ -28,18 +38,23 @@ export function DenseInput({
         </AppText>
       ) : null}
       <TextInput
+        ref={ref}
         style={[styles.input, !editable && styles.readonly]}
         value={value}
         onChangeText={onChangeText}
+        onBlur={onBlur}
+        onFocus={onFocus}
+        onSubmitEditing={onSubmitEditing}
         placeholder={placeholder}
         placeholderTextColor={colors.text.muted}
         editable={editable}
         keyboardType={keyboardType}
         selectTextOnFocus
+        returnKeyType="done"
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrap: {

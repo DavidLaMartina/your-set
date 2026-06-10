@@ -21,9 +21,12 @@ import {
   type PlannedExerciseRow,
 } from '@/features/sessions/services/session-lineup-service';
 import { confirmArchiveSession, confirmDeleteArchivedSession } from '@/lib/confirm-delete';
+import { formatExerciseDisplayName } from '@/lib/format';
 import { exercisePickerHref } from '@/lib/navigation';
+import * as SessionExerciseRepo from '@/lib/db/repositories/session-exercise-repository';
+import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
 import * as SessionRepo from '@/lib/db/repositories/session-repository';
-import type { Session, SessionExercise } from '@/types/domain';
+import { implementUsesManufacturer, type Session, type SessionExercise } from '@/types/domain';
 
 export default function SessionDefinitionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -82,6 +85,30 @@ export default function SessionDefinitionScreen() {
         await deleteSessionDefinition(id);
         router.back();
       });
+    })();
+  };
+
+  const handleSetManufacturer = (row: PlannedExerciseRow) => {
+    void (async () => {
+      const manufacturers = await ReferenceRepo.listManufacturers();
+      const buttons = [
+        ...manufacturers.map((m) => ({
+          text: m.name,
+          onPress: () =>
+            void SessionExerciseRepo.updateSessionExerciseManufacturer(row.id, m.id).then(
+              () => refresh(),
+            ),
+        })),
+        {
+          text: 'Clear',
+          onPress: () =>
+            void SessionExerciseRepo.updateSessionExerciseManufacturer(row.id, null).then(
+              () => refresh(),
+            ),
+        },
+        { text: 'Cancel', style: 'cancel' as const },
+      ];
+      Alert.alert('Default equipment', 'Sets in new workouts copy this brand.', buttons);
     })();
   };
 
@@ -181,10 +208,14 @@ export default function SessionDefinitionScreen() {
         </AppText>
       ) : null}
 
-      {planned.map((row, index) => (
+      {planned.map((row) => {
+        const displayTitle = formatExerciseDisplayName(row.exerciseName, row.manufacturerName);
+        const showManufacturer = implementUsesManufacturer(row.implementId);
+
+        return (
         <Card
           key={row.id}
-          title={row.exerciseName}
+          title={displayTitle}
           headerRight={
             <AppText variant="caption" muted>
               #{row.sortOrder + 1}
@@ -193,8 +224,20 @@ export default function SessionDefinitionScreen() {
           <AppText variant="caption" muted>
             {formatPrescription(row)}
           </AppText>
+          {showManufacturer && row.manufacturerName ? (
+            <AppText variant="caption" muted>
+              Equipment: {row.manufacturerName}
+            </AppText>
+          ) : null}
           {isActive ? (
             <View style={styles.rowActions}>
+              {showManufacturer ? (
+                <PrimaryButton
+                  label={row.manufacturerName ? 'Change equipment' : 'Set equipment'}
+                  variant="ghost"
+                  onPress={() => handleSetManufacturer(row)}
+                />
+              ) : null}
               <PrimaryButton
                 label="↑"
                 variant="ghost"
@@ -217,7 +260,8 @@ export default function SessionDefinitionScreen() {
             </View>
           ) : null}
         </Card>
-      ))}
+        );
+      })}
     </Screen>
   );
 }

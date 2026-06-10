@@ -51,6 +51,7 @@ export type SessionExerciseRow = {
   target_reps_min: number | null;
   target_reps_max: number | null;
   target_weight: number | null;
+  manufacturer_id: string | null;
   prescription_notes: string | null;
   created_at: string;
   updated_at: string;
@@ -63,6 +64,7 @@ export type SessionInstanceRow = {
   ended_at: string | null;
   bodyweight: number | null;
   notes: string | null;
+  editing_unlocked: number;
   created_at: string;
   updated_at: string;
 };
@@ -72,6 +74,7 @@ export type SessionInstanceExerciseRow = {
   session_instance_id: string;
   exercise_id: string;
   sort_order: number;
+  manufacturer_id: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

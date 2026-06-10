@@ -1,6 +1,8 @@
 import { removeVideoFromSet } from '@/features/video/services/set-video-service';
 import * as SetRepo from '@/lib/db/repositories/set-repository';
 import * as InstanceExerciseRepo from '@/lib/db/repositories/session-instance-exercise-repository';
+import * as SessionExerciseRepo from '@/lib/db/repositories/session-exercise-repository';
+import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
 import { isoNow } from '@/lib/db/timestamps';
 import type { Set } from '@/types/domain';
 
@@ -72,6 +74,28 @@ export async function getNextSortOrderForBlock(
   return max + 1;
 }
 
+export async function resolveManufacturerForWorkoutSet(
+  exerciseId: string,
+  sessionInstanceExerciseId: string,
+): Promise<string | null> {
+  const block = await InstanceExerciseRepo.getSessionInstanceExerciseById(
+    sessionInstanceExerciseId,
+  );
+  if (!block) return defaultManufacturerForExercise(exerciseId);
+  if (block.manufacturerId) return block.manufacturerId;
+
+  const instance = await SessionInstanceRepo.getSessionInstanceById(block.sessionInstanceId);
+  if (instance?.sessionId) {
+    const planned = await SessionExerciseRepo.findSessionExerciseBySessionAndExercise(
+      instance.sessionId,
+      exerciseId,
+    );
+    if (planned?.manufacturerId) return planned.manufacturerId;
+  }
+
+  return defaultManufacturerForExercise(exerciseId);
+}
+
 export async function createLoggedSet(input: LogSetInput): Promise<Set> {
   let sortOrder = input.sortOrder ?? null;
   if (
@@ -85,6 +109,18 @@ export async function createLoggedSet(input: LogSetInput): Promise<Set> {
     );
   }
 
+  let manufacturerId = input.manufacturerId ?? null;
+  if (
+    manufacturerId == null &&
+    input.sessionInstanceId &&
+    input.sessionInstanceExerciseId
+  ) {
+    manufacturerId = await resolveManufacturerForWorkoutSet(
+      input.exerciseId,
+      input.sessionInstanceExerciseId,
+    );
+  }
+
   return SetRepo.createSet({
     exerciseId: input.exerciseId,
     performedAt: input.performedAt ?? isoNow(),
@@ -93,7 +129,7 @@ export async function createLoggedSet(input: LogSetInput): Promise<Set> {
     sortOrder,
     weight: input.weight ?? null,
     reps: input.reps ?? null,
-    manufacturerId: input.manufacturerId ?? null,
+    manufacturerId,
     notes: input.notes ?? null,
   });
 }
@@ -128,6 +164,19 @@ export function formValuesToLogInput(
   };
 }
 
+async function defaultManufacturerForWorkoutBlock(
+  sessionInstanceId: string,
+  exerciseId: string,
+): Promise<string | null> {
+  const instance = await SessionInstanceRepo.getSessionInstanceById(sessionInstanceId);
+  if (!instance?.sessionId) return null;
+  const planned = await SessionExerciseRepo.findSessionExerciseBySessionAndExercise(
+    instance.sessionId,
+    exerciseId,
+  );
+  return planned?.manufacturerId ?? null;
+}
+
 export async function ensureWorkoutBlock(
   sessionInstanceId: string,
   exerciseId: string,
@@ -145,6 +194,7 @@ export async function ensureWorkoutBlock(
     sessionInstanceId,
     exerciseId,
     sortOrder,
+    manufacturerId: await defaultManufacturerForWorkoutBlock(sessionInstanceId, exerciseId),
   });
   return block.id;
 }
@@ -162,6 +212,19 @@ export async function deleteLoggedSet(setId: string): Promise<void> {
   if (!set) return;
   if (set.sessionInstanceId != null) {
     throw new Error('Cannot delete a set that belongs to a workout from this screen');
+  }
+  await removeVideoFromSet(setId);
+  await SetRepo.deleteSet(setId);
+}
+
+/** Delete a set logged during a workout (from the workout screen only). */
+export async function deleteWorkoutSet(
+  setId: string,
+  sessionInstanceId: string,
+): Promise<void> {
+  const set = await SetRepo.getSetById(setId);
+  if (!set || set.sessionInstanceId !== sessionInstanceId) {
+    throw new Error('Set does not belong to this workout');
   }
   await removeVideoFromSet(setId);
   await SetRepo.deleteSet(setId);

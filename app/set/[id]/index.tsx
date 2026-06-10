@@ -31,7 +31,12 @@ import type { HistorySetRow, Manufacturer, SetVideo } from '@/types/domain';
 type Mode = 'view' | 'edit';
 
 export default function SetDetailScreen() {
-  const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
+  const { id, edit, returnTo } = useLocalSearchParams<{
+    id: string;
+    edit?: string;
+    returnTo?: 'workout' | 'sets';
+  }>();
+  const returnToWorkout = returnTo === 'workout';
   const [set, setSet] = useState<HistorySetRow | null>(null);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   const [showManufacturer, setShowManufacturer] = useState(false);
@@ -151,16 +156,24 @@ export default function SetDetailScreen() {
         setSet(refreshed);
         setForm(logSetFormFromSet(refreshed));
       }
-      setMode('view');
+      if (returnToWorkout) {
+        router.back();
+      } else {
+        setMode('view');
+      }
     } finally {
       setSaving(false);
     }
-  }, [id, set, form, saving]);
+  }, [id, set, form, saving, returnToWorkout]);
 
   const cancelEdit = useCallback(() => {
+    if (returnToWorkout) {
+      router.back();
+      return;
+    }
     if (set) setForm(logSetFormFromSet(set));
     setMode('view');
-  }, [set]);
+  }, [set, returnToWorkout]);
 
   if (loading) {
     return (
