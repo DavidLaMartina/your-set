@@ -2,15 +2,12 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Card } from '@/components/card';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
-import { VideoBadge } from '@/components/video-badge';
+import { SetListCard } from '@/components/set-list-card';
 import { AppText } from '@/components/ui/app-text';
 import { listRecentSets, type RecentSetRow } from '@/features/sets/services/recent-sets-service';
-import { formatPerformedAt, formatSetLabel } from '@/lib/format';
-import { setDetailHref, exercisePickerForLogSetHref } from '@/lib/navigation';
-import { spacing } from '@/lib/theme/tokens';
+import { exercisePickerForLogSetHref } from '@/lib/navigation';
 
 export default function SetsScreen() {
   const [rows, setRows] = useState<RecentSetRow[]>([]);
@@ -58,47 +55,14 @@ export default function SetsScreen() {
       ) : null}
 
       {rows.map((row) => (
-        <RecentSetCard key={row.id} row={row} />
+        <SetListCard key={row.id} row={row} />
       ))}
     </Screen>
-  );
-}
-
-function RecentSetCard({ row }: { row: RecentSetRow }) {
-  const videoStatus = row.video?.availabilityStatus ?? 'none';
-
-  return (
-    <Card onPress={() => router.push(setDetailHref(row.id))}>
-      <View style={styles.setRow}>
-        <View style={styles.setMain}>
-          <AppText variant="dataLarge">
-            {formatSetLabel(row.weight, row.reps)}
-          </AppText>
-          <VideoBadge status={videoStatus} compact />
-        </View>
-        <AppText variant="body">{row.exerciseName}</AppText>
-        <AppText variant="caption" muted>
-          {row.sessionName ? row.sessionName : 'No workout'}
-          {row.manufacturerName ? ` · ${row.manufacturerName}` : ''}
-          {' · '}
-          {formatPerformedAt(row.performedAt)}
-        </AppText>
-      </View>
-    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
     gap: 4,
-  },
-  setRow: {
-    gap: spacing.xs,
-  },
-  setMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
   },
 });

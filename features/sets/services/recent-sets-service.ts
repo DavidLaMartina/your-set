@@ -14,10 +14,23 @@ export type RecentSetRow = SetWithVideo & {
   sessionName: string | null;
 };
 
-export async function listRecentSets(limit = 80): Promise<RecentSetRow[]> {
+export type ListRecentSetsOptions = {
+  /** When set, only returns sets for this exercise (newest first). */
+  exerciseId?: string;
+  limit?: number;
+};
+
+export async function listRecentSets(options: ListRecentSetsOptions = {}): Promise<RecentSetRow[]> {
+  const { exerciseId, limit = 80 } = options;
   const db = await getDb();
   const [rows, manufacturers] = await Promise.all([
-    db.getAllAsync<SetRow>(`SELECT * FROM sets ORDER BY performed_at DESC LIMIT ?`, limit),
+    exerciseId
+      ? db.getAllAsync<SetRow>(
+          `SELECT * FROM sets WHERE exercise_id = ? ORDER BY performed_at DESC LIMIT ?`,
+          exerciseId,
+          limit,
+        )
+      : db.getAllAsync<SetRow>(`SELECT * FROM sets ORDER BY performed_at DESC LIMIT ?`, limit),
     ReferenceRepo.listManufacturers(),
   ]);
   const manufacturerNames = new Map(manufacturers.map((m) => [m.id, m.name]));

@@ -1,30 +1,34 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert } from 'react-native';
 
-import { Card } from '@/components/card';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
+import { SetListCard } from '@/components/set-list-card';
 import { StackHeader } from '@/components/stack-header';
-import { VideoBadge } from '@/components/video-badge';
 import { AppText } from '@/components/ui/app-text';
-import { loadExerciseHistory } from '@/features/history/services/exercise-history-service';
 import { deleteExercise } from '@/features/exercises/services/library-service';
-import { formatPerformedAt, formatSetLabel } from '@/lib/format';
-import { editExerciseHref, logSetHref, setDetailHref } from '@/lib/navigation';
-import { spacing } from '@/lib/theme/tokens';
-import type { ExerciseHistoryView, HistorySetRow } from '@/types/domain';
+import { listRecentSets, type RecentSetRow } from '@/features/sets/services/recent-sets-service';
+import * as ExerciseRepo from '@/lib/db/repositories/exercise-repository';
+import { editExerciseHref, logSetHref } from '@/lib/navigation';
+import type { ExerciseWithMeta } from '@/types/domain';
 
 export default function ExerciseDetailScreen() {
   const { exerciseId: id } = useLocalSearchParams<{ exerciseId: string }>();
-  const [view, setView] = useState<ExerciseHistoryView | null>(null);
+  const [exercise, setExercise] = useState<ExerciseWithMeta | null>(null);
+  const [sets, setSets] = useState<RecentSetRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
-      setView(await loadExerciseHistory(id));
+      const [meta, rows] = await Promise.all([
+        ExerciseRepo.getExerciseWithMeta(id),
+        listRecentSets({ exerciseId: id }),
+      ]);
+      setExercise(meta);
+      setSets(rows);
     } finally {
       setLoading(false);
     }
@@ -45,7 +49,7 @@ export default function ExerciseDetailScreen() {
     );
   }
 
-  if (loading && !view) {
+  if (loading && !exercise) {
     return (
       <Screen scroll={false} padded>
         <StackHeader title="Exercise" />
@@ -54,7 +58,7 @@ export default function ExerciseDetailScreen() {
     );
   }
 
-  if (!view) {
+  if (!exercise) {
     return (
       <Screen scroll={false} padded>
         <StackHeader title="Not found" />
@@ -63,7 +67,6 @@ export default function ExerciseDetailScreen() {
     );
   }
 
-  const { exercise, recentSets, bestSets, comparableSets } = view;
   const subtitle =
     [exercise.implementName, exercise.primaryMuscleName].filter(Boolean).join(' · ') || undefined;
 
@@ -98,13 +101,21 @@ export default function ExerciseDetailScreen() {
 
       <PrimaryButton label="+ Log set" onPress={() => router.push(logSetHref({ exerciseId: id }))} />
 
-      <HistorySection title="Recent sets" sets={recentSets} />
-      <HistorySection title="Best sets" sets={bestSets} />
-      <HistorySection
-        title="Comparable"
-        sets={comparableSets}
-        subtitle="Top sets, similar load"
-      />
+      {loading && sets.length === 0 ? (
+        <AppText variant="body" muted>
+          Loading…
+        </AppText>
+      ) : null}
+
+      {!loading && sets.length === 0 ? (
+        <AppText variant="body" muted>
+          No sets logged yet for this exercise.
+        </AppText>
+      ) : null}
+
+      {sets.map((row) => (
+        <SetListCard key={row.id} row={row} showExerciseName={false} />
+      ))}
 
       <PrimaryButton
         label="Edit exercise"
@@ -115,67 +126,3 @@ export default function ExerciseDetailScreen() {
     </Screen>
   );
 }
-
-function HistorySection({
-  title,
-  subtitle,
-  sets,
-}: {
-  title: string;
-  subtitle?: string;
-  sets: HistorySetRow[];
-}) {
-  return (
-    <View style={styles.section}>
-      <AppText variant="titleMedium">{title}</AppText>
-      {subtitle ? (
-        <AppText variant="caption" muted>
-          {subtitle}
-        </AppText>
-      ) : null}
-      {sets.length === 0 ? (
-        <AppText variant="body" muted>
-          No sets yet.
-        </AppText>
-      ) : (
-        sets.map((row) => <HistorySetCard key={row.id} row={row} />)
-      )}
-    </View>
-  );
-}
-
-function HistorySetCard({ row }: { row: HistorySetRow }) {
-  const videoStatus = row.video?.availabilityStatus ?? 'none';
-
-  return (
-    <Card
-      onPress={() => router.push(setDetailHref(row.id))}
-      headerRight={<VideoBadge status={videoStatus} compact />}>
-      <View style={styles.setRow}>
-        <AppText variant="dataLarge">
-          {formatSetLabel(row.weight, row.reps)}
-        </AppText>
-      </View>
-      <AppText variant="caption" muted>
-        {formatPerformedAt(row.performedAt)}
-        {row.sessionInstanceId
-          ? row.sessionName
-            ? ` · ${row.sessionName}`
-            : ' · Session'
-          : ' · No workout'}
-        {row.manufacturerName ? ` · ${row.manufacturerName}` : ''}
-      </AppText>
-    </Card>
-  );
-}
-
-const styles = StyleSheet.create({
-  section: {
-    gap: spacing.sm,
-  },
-  setRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-});
