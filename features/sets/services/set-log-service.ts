@@ -1,3 +1,4 @@
+import { removeVideoFromSet } from '@/features/video/services/set-video-service';
 import * as SetRepo from '@/lib/db/repositories/set-repository';
 import * as InstanceExerciseRepo from '@/lib/db/repositories/session-instance-exercise-repository';
 import { isoNow } from '@/lib/db/timestamps';
@@ -153,4 +154,15 @@ export async function defaultManufacturerForExercise(
   exerciseId: string,
 ): Promise<string | null> {
   return SetRepo.getLastManufacturerIdForExercise(exerciseId);
+}
+
+/** Delete a set-only log and any attached video files. */
+export async function deleteLoggedSet(setId: string): Promise<void> {
+  const set = await SetRepo.getSetById(setId);
+  if (!set) return;
+  if (set.sessionInstanceId != null) {
+    throw new Error('Cannot delete a set that belongs to a workout from this screen');
+  }
+  await removeVideoFromSet(setId);
+  await SetRepo.deleteSet(setId);
 }

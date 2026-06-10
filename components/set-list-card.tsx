@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { SetVideoThumbnail } from '@/components/set-video-thumbnail';
+import { SwipeToDeleteRow } from '@/components/swipe-to-delete-row';
 import { AppText } from '@/components/ui/app-text';
 import type { RecentSetRow } from '@/features/sets/services/recent-sets-service';
 import { formatPerformedAt, formatSetLabel } from '@/lib/format';
@@ -13,13 +14,18 @@ type Props = {
   row: RecentSetRow;
   /** Hide when the list is already scoped to one exercise. */
   showExerciseName?: boolean;
+  onDelete?: (setId: string) => void;
 };
 
-export function SetListCard({ row, showExerciseName = true }: Props) {
+export function SetListCard({ row, showExerciseName = true, onDelete }: Props) {
   const video =
     row.video?.availabilityStatus === 'available' ? row.video : null;
+  const deletable = row.sessionInstanceId == null;
+  const blockedReason = row.sessionName
+    ? `This set was logged during “${row.sessionName}”. Delete it from that workout.`
+    : 'This set was logged during a workout. Delete it from that workout.';
 
-  return (
+  const card = (
     <Card onPress={() => router.push(setDetailHref(row.id))}>
       <View style={styles.cardRow}>
         <View style={styles.setContent}>
@@ -45,6 +51,17 @@ export function SetListCard({ row, showExerciseName = true }: Props) {
         ) : null}
       </View>
     </Card>
+  );
+
+  if (!onDelete) return card;
+
+  return (
+    <SwipeToDeleteRow
+      deletable={deletable}
+      blockedReason={blockedReason}
+      onDelete={() => onDelete(row.id)}>
+      {card}
+    </SwipeToDeleteRow>
   );
 }
 

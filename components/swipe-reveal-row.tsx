@@ -19,6 +19,9 @@ export type SwipeRevealAction = {
   tone: SwipeRevealTone;
   onPress: () => void;
   accessibilityLabel?: string;
+  /** Greyed action — swipe still works but tap is a no-op (optionally alerts). */
+  disabled?: boolean;
+  onDisabledPress?: () => void;
 };
 
 type Props = {
@@ -32,6 +35,10 @@ export function SwipeRevealRow({ children, action, enabled = true }: Props) {
 
   const handlePress = () => {
     swipeRef.current?.close();
+    if (action.disabled) {
+      action.onDisabledPress?.();
+      return;
+    }
     action.onPress();
   };
 
@@ -45,8 +52,12 @@ export function SwipeRevealRow({ children, action, enabled = true }: Props) {
       extrapolate: 'clamp',
     });
 
-    const actionStyle =
-      action.tone === 'danger' ? styles.dangerAction : styles.archiveAction;
+    const actionStyle = action.disabled
+      ? styles.disabledAction
+      : action.tone === 'danger'
+        ? styles.dangerAction
+        : styles.archiveAction;
+    const iconColor = action.disabled ? colors.text.muted : colors.text.primary;
 
     return (
       <Animated.View style={[styles.actionWrap, { transform: [{ translateX }] }]}>
@@ -54,9 +65,10 @@ export function SwipeRevealRow({ children, action, enabled = true }: Props) {
           style={[styles.action, actionStyle]}
           onPress={handlePress}
           accessibilityRole="button"
+          accessibilityState={{ disabled: action.disabled }}
           accessibilityLabel={action.accessibilityLabel ?? action.label}>
-          <Ionicons name={action.icon} size={22} color={colors.text.primary} />
-          <AppText variant="caption" style={styles.actionLabel}>
+          <Ionicons name={action.icon} size={22} color={iconColor} />
+          <AppText variant="caption" color={iconColor}>
             {action.label}
           </AppText>
         </Pressable>
@@ -105,7 +117,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border.default,
   },
-  actionLabel: {
-    color: colors.text.primary,
+  disabledAction: {
+    backgroundColor: colors.bg.subtle,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    opacity: 0.55,
   },
 });
