@@ -73,6 +73,9 @@ export default function LogSetScreen() {
       const result = await pickVideoFromLibrary();
       if (result.ok) {
         setStagedVideo(result.video);
+        if (result.video.capturedAt) {
+          setForm((prev) => ({ ...prev, performedAt: result.video.capturedAt! }));
+        }
       } else if (result.reason === 'permissionDenied') {
         Alert.alert(
           'Photo access needed',

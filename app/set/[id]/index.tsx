@@ -77,6 +77,23 @@ export default function SetDetailScreen() {
       const result = await attachVideoToSet(id);
       if (result.ok) {
         applyVideo(result.video);
+        if (result.capturedAt) {
+          if (mode === 'edit') {
+            setForm((prev) =>
+              prev ? { ...prev, performedAt: result.capturedAt! } : prev,
+            );
+          } else if (set) {
+            await updateLoggedSet(id, {
+              exerciseId: set.exerciseId,
+              performedAt: result.capturedAt,
+            });
+            const refreshed = await loadSetWithContext(id);
+            if (refreshed) {
+              setSet(refreshed);
+              setForm(logSetFormFromSet(refreshed));
+            }
+          }
+        }
       } else if (result.reason === 'permissionDenied') {
         Alert.alert(
           'Photo access needed',
@@ -86,7 +103,7 @@ export default function SetDetailScreen() {
     } finally {
       setBusy(false);
     }
-  }, [id, busy, applyVideo]);
+  }, [id, busy, applyVideo, mode, set]);
 
   const handleRemoveVideo = useCallback(() => {
     if (!id || busy) return;

@@ -10,7 +10,7 @@ import * as SetVideoRepo from '@/lib/db/repositories/set-video-repository';
 import type { SetVideo } from '@/types/domain';
 
 export type AttachVideoResult =
-  | { ok: true; video: SetVideo }
+  | { ok: true; video: SetVideo; capturedAt: string | null }
   | { ok: false; reason: 'canceled' | 'permissionDenied' };
 
 /**
@@ -70,7 +70,7 @@ export async function attachVideoToSet(setId: string): Promise<AttachVideoResult
   if (!picked.ok) return picked;
 
   const video = await persistPickedVideo(setId, picked.video);
-  return { ok: true, video };
+  return { ok: true, video, capturedAt: picked.video.capturedAt };
 }
 
 export async function removeVideoFromSet(setId: string): Promise<void> {
