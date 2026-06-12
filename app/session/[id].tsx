@@ -7,7 +7,7 @@ import { Card } from '@/components/card';
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { StackHeader } from '@/components/stack-header';
-import { WorkoutSetRow } from '@/components/workout-set-row';
+import { WorkoutSetRow, type WorkoutSetCommitFn } from '@/components/workout-set-row';
 import { AppText } from '@/components/ui/app-text';
 import { loadSessionInstanceView } from '@/features/sessions/services/session-instance-view-service';
 import * as SessionInstanceRepo from '@/lib/db/repositories/session-instance-repository';
@@ -34,8 +34,10 @@ export default function SessionDetailScreen() {
   const [session, setSession] = useState<SessionInstanceView | null>(null);
   const [loading, setLoading] = useState(true);
   const [draftBlockId, setDraftBlockId] = useState<string | null>(null);
+  const [draftNonce, setDraftNonce] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const scrollYRef = useRef(0);
+  const commitActiveSetRef = useRef<WorkoutSetCommitFn | null>(null);
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -102,11 +104,23 @@ export default function SessionDetailScreen() {
       scrollRef.current?.scrollToEnd({ animated: true });
     }, 80);
     return () => clearTimeout(timer);
-  }, [draftBlockId]);
+  }, [draftBlockId, draftNonce]);
 
-  const handleAddSet = (blockId: string) => {
+  const handleRegisterCommit = useCallback((commit: WorkoutSetCommitFn | null) => {
+    commitActiveSetRef.current = commit;
+  }, []);
+
+  const handleAddSet = useCallback(async (blockId: string) => {
+    const commit = commitActiveSetRef.current;
+    if (commit) {
+      const result = await commit();
+      // Partial entry: keep the row and the user's cursor; don't open a new one.
+      if (result === 'incomplete') return;
+      commitActiveSetRef.current = null;
+    }
     setDraftBlockId(blockId);
-  };
+    setDraftNonce((n) => n + 1);
+  }, []);
 
   const handleInputFocus = useCallback((rowRef: RefObject<ViewType | null>) => {
     scrollIntoViewAboveKeyboard(scrollRef, rowRef, () => scrollYRef.current);
@@ -178,6 +192,7 @@ export default function SessionDetailScreen() {
   return (
     <Screen
       ref={scrollRef}
+      keyboardShouldPersistTaps="always"
       onScroll={(e) => {
         scrollYRef.current = e.nativeEvent.contentOffset.y;
       }}>
@@ -268,6 +283,7 @@ export default function SessionDetailScreen() {
                     sessionInstanceExerciseId: block.id,
                   }}
                   onInputFocus={handleInputFocus}
+                  onRegisterCommit={handleRegisterCommit}
                   onSaved={handleSetSaved}
                   onOpenDetail={handleOpenSetDetail}
                   onDelete={
@@ -279,7 +295,7 @@ export default function SessionDetailScreen() {
               ))}
               {draftBlockId === block.id ? (
                 <WorkoutSetRow
-                  key="draft"
+                  key={`draft-${draftNonce}`}
                   index={block.sets.length + 1}
                   setId={null}
                   initialWeight={null}
@@ -288,6 +304,7 @@ export default function SessionDetailScreen() {
                   editable={editable}
                   focusWeight
                   onInputFocus={handleInputFocus}
+                  onRegisterCommit={handleRegisterCommit}
                   logContext={{
                     exerciseId: block.exerciseId,
                     sessionInstanceId: id,
@@ -303,7 +320,7 @@ export default function SessionDetailScreen() {
             </View>
             {editable ? (
               <Pressable
-                onPress={() => handleAddSet(block.id)}
+                onPress={() => void handleAddSet(block.id)}
                 style={styles.addSet}
                 accessibilityRole="button"
                 accessibilityLabel="Add set">

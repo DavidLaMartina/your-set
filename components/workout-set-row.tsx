@@ -20,6 +20,18 @@ export type WorkoutSetLogContext = {
   sessionInstanceExerciseId: string;
 };
 
+/**
+ * Result of asking a row to commit:
+ * - `saved`: weight×reps were complete and persisted (or updated)
+ * - `noop`: nothing to save (empty row, or unchanged existing set)
+ * - `incomplete`: partial data typed but not yet a full set — caller should
+ *   leave the row alone (do NOT discard what the user is mid-typing)
+ */
+export type CommitResult = 'saved' | 'noop' | 'incomplete';
+
+/** Save weight×reps when both are entered; safe to call while a field is focused. */
+export type WorkoutSetCommitFn = () => Promise<CommitResult>;
+
 type Props = {
   index: number;
   setId: string | null;
@@ -31,6 +43,8 @@ type Props = {
   /** Focus weight after mount (new-set draft rows). */
   focusWeight?: boolean;
   onInputFocus?: (rowRef: RefObject<ViewType | null>) => void;
+  /** Registers the row's commit fn while a field is focused. */
+  onRegisterCommit?: (commit: WorkoutSetCommitFn | null) => void;
   onSaved: () => void;
   onOpenDetail: (setId: string) => void;
   /** Swipe delete — draft rows dismiss locally; saved rows delete from DB. */
@@ -54,6 +68,7 @@ export function WorkoutSetRow({
   logContext,
   focusWeight,
   onInputFocus,
+  onRegisterCommit,
   onSaved,
   onOpenDetail,
   onDelete,
@@ -63,33 +78,37 @@ export function WorkoutSetRow({
   const savingRef = useRef(false);
   const rowRef = useRef<ViewType>(null);
   const weightRef = useRef<TextInput>(null);
+  const repsRef = useRef<TextInput>(null);
+  const weightFocusedRef = useRef(false);
+  const repsFocusedRef = useRef(false);
+  const blurPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mirror the latest typed values so the commit fn registered with the parent
+  // (at focus time) never reads stale closure values when `+` calls it.
+  const weightValueRef = useRef(weight);
+  const repsValueRef = useRef(reps);
+  weightValueRef.current = weight;
+  repsValueRef.current = reps;
+
+  const clearBlurPersistTimer = () => {
+    if (blurPersistTimerRef.current != null) {
+      clearTimeout(blurPersistTimerRef.current);
+      blurPersistTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => () => clearBlurPersistTimer(), []);
 
   const handleInputFocus = () => {
     onInputFocus?.(rowRef);
   };
 
-  useEffect(() => {
-    const next = valuesFromSet(initialWeight, initialReps);
-    setWeight(next.weight);
-    setReps(next.reps);
-  }, [initialWeight, initialReps, setId]);
-
-  useEffect(() => {
-    if (!focusWeight || !editable) return;
-    const timer = setTimeout(() => {
-      weightRef.current?.focus();
-    }, 150);
-    return () => clearTimeout(timer);
-  }, [focusWeight, editable]);
-
   const persist = useCallback(async () => {
     if (!editable || savingRef.current) return;
-    const parsedWeight = parseOptionalFloat(weight);
-    const parsedReps = parseOptionalInt(reps);
-    const hasValue = parsedWeight != null || parsedReps != null;
+    const parsedWeight = parseOptionalFloat(weightValueRef.current);
+    const parsedReps = parseOptionalInt(repsValueRef.current);
+    if (parsedWeight == null || parsedReps == null) return;
 
     if (!setId) {
-      if (!hasValue) return;
       savingRef.current = true;
       try {
         await createLoggedSet({
@@ -105,7 +124,6 @@ export function WorkoutSetRow({
     }
 
     if (parsedWeight === initialWeight && parsedReps === initialReps) return;
-    if (!hasValue) return;
 
     savingRef.current = true;
     try {
@@ -118,19 +136,91 @@ export function WorkoutSetRow({
     } finally {
       savingRef.current = false;
     }
-  }, [
-    editable,
-    weight,
-    reps,
-    setId,
-    logContext,
-    initialWeight,
-    initialReps,
-    onSaved,
-  ]);
+  }, [editable, setId, logContext, initialWeight, initialReps, onSaved]);
 
-  const handleBlur = () => {
-    void persist();
+  // Stable across renders: reads the latest values from refs, so the parent can
+  // safely hold onto this reference and call it from the `+` button.
+  const commitIfReady = useCallback<WorkoutSetCommitFn>(async () => {
+    const currentWeight = weightValueRef.current;
+    const currentReps = repsValueRef.current;
+    const parsedWeight = parseOptionalFloat(currentWeight);
+    const parsedReps = parseOptionalInt(currentReps);
+    const ready = parsedWeight != null && parsedReps != null;
+
+    if (!ready) {
+      const hasPartial =
+        !setId && (currentWeight.trim() !== '' || currentReps.trim() !== '');
+      return hasPartial ? 'incomplete' : 'noop';
+    }
+    if (setId && parsedWeight === initialWeight && parsedReps === initialReps) {
+      return 'noop';
+    }
+
+    weightFocusedRef.current = false;
+    repsFocusedRef.current = false;
+    clearBlurPersistTimer();
+    onRegisterCommit?.(null);
+    await persist();
+    return 'saved';
+  }, [setId, initialWeight, initialReps, persist, onRegisterCommit]);
+
+  const schedulePersistAfterBlur = useCallback(() => {
+    clearBlurPersistTimer();
+    blurPersistTimerRef.current = setTimeout(() => {
+      blurPersistTimerRef.current = null;
+      if (weightFocusedRef.current || repsFocusedRef.current) return;
+      onRegisterCommit?.(null);
+      void persist();
+    }, 0);
+  }, [persist, onRegisterCommit]);
+
+  useEffect(() => {
+    const next = valuesFromSet(initialWeight, initialReps);
+    setWeight(next.weight);
+    setReps(next.reps);
+  }, [initialWeight, initialReps, setId]);
+
+  useEffect(() => {
+    if (!focusWeight || !editable) return;
+    const timer = setTimeout(() => {
+      weightRef.current?.focus();
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [focusWeight, editable]);
+
+  useEffect(
+    () => () => {
+      onRegisterCommit?.(null);
+    },
+    [onRegisterCommit],
+  );
+
+  const handleWeightFocus = () => {
+    clearBlurPersistTimer();
+    weightFocusedRef.current = true;
+    onRegisterCommit?.(commitIfReady);
+    handleInputFocus();
+  };
+
+  const handleWeightBlur = () => {
+    weightFocusedRef.current = false;
+    schedulePersistAfterBlur();
+  };
+
+  const handleRepsFocus = () => {
+    clearBlurPersistTimer();
+    repsFocusedRef.current = true;
+    onRegisterCommit?.(commitIfReady);
+    handleInputFocus();
+  };
+
+  const handleRepsBlur = () => {
+    repsFocusedRef.current = false;
+    schedulePersistAfterBlur();
+  };
+
+  const handleWeightSubmit = () => {
+    repsRef.current?.focus();
   };
 
   const handleRowPress = useCallback(async () => {
@@ -178,9 +268,9 @@ export function WorkoutSetRow({
             ref={weightRef}
             value={weight}
             onChangeText={setWeight}
-            onFocus={handleInputFocus}
-            onBlur={handleBlur}
-            onSubmitEditing={handleBlur}
+            onFocus={handleWeightFocus}
+            onBlur={handleWeightBlur}
+            onSubmitEditing={handleWeightSubmit}
             placeholder="lb"
             editable={editable}
           />
@@ -188,11 +278,12 @@ export function WorkoutSetRow({
             ×
           </AppText>
           <DenseInput
+            ref={repsRef}
             value={reps}
             onChangeText={setReps}
-            onFocus={handleInputFocus}
-            onBlur={handleBlur}
-            onSubmitEditing={handleBlur}
+            onFocus={handleRepsFocus}
+            onBlur={handleRepsBlur}
+            onSubmitEditing={schedulePersistAfterBlur}
             placeholder="reps"
             editable={editable}
           />

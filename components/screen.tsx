@@ -21,6 +21,7 @@ type ScreenProps = {
   style?: ViewStyle;
   contentStyle?: ViewStyle;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  keyboardShouldPersistTaps?: 'always' | 'handled' | 'never';
 };
 
 const ScrollBody = forwardRef<
@@ -30,13 +31,17 @@ const ScrollBody = forwardRef<
     paddingStyle?: ViewStyle;
     contentStyle?: ViewStyle;
     onScroll?: ScreenProps['onScroll'];
+    keyboardShouldPersistTaps?: ScreenProps['keyboardShouldPersistTaps'];
   }
->(function ScrollBody({ children, paddingStyle, contentStyle, onScroll }, ref) {
+>(function ScrollBody(
+  { children, paddingStyle, contentStyle, onScroll, keyboardShouldPersistTaps = 'handled' },
+  ref,
+) {
   return (
     <ScrollView
       ref={ref}
       contentContainerStyle={[styles.scrollContent, paddingStyle, contentStyle]}
-      keyboardShouldPersistTaps="handled"
+      keyboardShouldPersistTaps={keyboardShouldPersistTaps}
       keyboardDismissMode="interactive"
       automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       showsVerticalScrollIndicator={false}
@@ -48,7 +53,15 @@ const ScrollBody = forwardRef<
 });
 
 export const Screen = forwardRef<ScrollViewType, ScreenProps>(function Screen(
-  { children, scroll = true, padded = true, style, contentStyle, onScroll },
+  {
+    children,
+    scroll = true,
+    padded = true,
+    style,
+    contentStyle,
+    onScroll,
+    keyboardShouldPersistTaps,
+  },
   ref,
 ) {
   const paddingStyle = padded ? { paddingHorizontal: spacing.lg } : undefined;
@@ -59,7 +72,8 @@ export const Screen = forwardRef<ScrollViewType, ScreenProps>(function Screen(
         ref={ref}
         paddingStyle={paddingStyle}
         contentStyle={contentStyle}
-        onScroll={onScroll}>
+        onScroll={onScroll}
+        keyboardShouldPersistTaps={keyboardShouldPersistTaps}>
         {children}
       </ScrollBody>
     );
