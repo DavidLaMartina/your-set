@@ -134,6 +134,26 @@ Attach a video from the device photo library to a set, play it back in-app, and 
 
 - [ ] Device pass, export, README
 
+### Future — in-app capture & trim
+
+Goal: let users record a set video without leaving the app, and optionally trim it
+in the same flow (e.g. set detail → **Record video** instead of **Attach video** →
+trim → save).
+
+- **Recording in-app — easy, no ffmpeg.** `expo-camera` records video (`recordAsync`).
+  Add a capture entry point next to "Attach video" and feed the result through the
+  existing persist pipeline (copy into the document dir + thumbnail). Standard Expo
+  module, no custom native code.
+- **Trim at capture — depends on the meaning:**
+  - *Non-destructive* (store in/out points, always play within them): **easy.** Promote
+    the compare screen's in-memory trim window to a persisted `set_videos` field
+    (`trim_start` / `trim_end`) and honor it everywhere (set detail, compare). Original
+    stays intact and recoverable.
+  - *Destructive* (cut/export a shorter file to save storage): **still hard.** Needs real
+    video processing — a maintained native module or paid SDK (`ffmpeg-kit` is retired).
+- **Recommendation:** go non-destructive. It reuses the trim work already built on the
+  compare screen, keeps the source clip, and avoids heavy processing.
+
 ## Open decisions
 
 - [x] Tabs: Sessions, Workouts, Exercises (Sets tab in 3b)
@@ -145,6 +165,7 @@ Attach a video from the device photo library to a set, play it back in-app, and 
 
 | Date | Change |
 |------|--------|
+| 2026-06-12 | Phase 5: compare gains a scoped target picker (this exercise / same muscle / all), soft "comparable" highlighting (±5% load, ±2 reps), single **Play both** with synced muted playback + native per-clip controls, orientation-aware layout (stacked when both landscape), and an in-memory start/end trim window. Set filters (date / weight / reps / has-video / manufacturer) added to the Sets tab and exercise detail. |
 | 2026-06-08 | Schema v7–v8: dropped `set_type`, `rir`; v1 is weight × reps only. Set form has editable date/time and manufacturer dropdown (machine / Smith). Notes/tags reserved for richer searchable metadata later. |
 | 2026-06-08 | Unified set detail + edit into one view↔edit screen; added video attach to the log flow (staged → persisted on save); orientation-aware playback via thumbnail measurement. |
 | 2026-06-07 | Schema v6: manufacturer moved exercise → set (`sets.manufacturer_id`); migration uses DROP+rename swaps + stale-parent FK repair. Phase 4 local video started. |

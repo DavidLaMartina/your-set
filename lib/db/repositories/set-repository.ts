@@ -3,7 +3,7 @@ import { newId } from '@/lib/db/id';
 import { mapSetRow } from '@/lib/db/map-row';
 import { isoNow } from '@/lib/db/timestamps';
 import type { SetRow } from '@/lib/db/row-types';
-import type { Set, SetListFilters } from '@/types/domain';
+import type { CompareScope, Set, SetListFilters } from '@/types/domain';
 import { isSetSessionLinkValid } from '@/types/set-validation';
 
 export type CreateSetInput = {
@@ -61,6 +61,15 @@ function buildFilterClause(
     clauses.push(`${alias}.reps <= ?`);
     params.push(filters.repsMax);
   }
+  if (filters.manufacturerId) {
+    clauses.push(`${alias}.manufacturer_id = ?`);
+    params.push(filters.manufacturerId);
+  }
+  if (filters.hasVideo) {
+    clauses.push(
+      `EXISTS (SELECT 1 FROM set_videos v WHERE v.set_id = ${alias}.id AND v.availability_status = 'available')`,
+    );
+  }
 
   return {
     where: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '',
@@ -74,11 +83,57 @@ export async function getSetById(id: string): Promise<Set | null> {
   return row ? mapSetRow(row) : null;
 }
 
-export async function listSets(filters: SetListFilters = {}): Promise<Set[]> {
+export async function listSets(
+  filters: SetListFilters = {},
+  opts: { limit?: number } = {},
+): Promise<Set[]> {
   const db = await getDb();
   const { where, params } = buildFilterClause(filters);
+  const limitClause = opts.limit != null ? ' LIMIT ?' : '';
   const rows = await db.getAllAsync<SetRow>(
-    `SELECT s.* FROM sets s ${where} ORDER BY s.performed_at DESC`,
+    `SELECT s.* FROM sets s ${where} ORDER BY s.performed_at DESC${limitClause}`,
+    ...params,
+    ...(opts.limit != null ? [opts.limit] : []),
+  );
+  return rows.map(mapSetRow);
+}
+
+/**
+ * Candidate sets for the compare picker — only sets that have a playable video.
+ * `scope` widens the net from the source exercise to its primary muscle or all
+ * exercises; the source set itself is always excluded.
+ */
+export async function listComparableVideoSets(opts: {
+  scope: CompareScope;
+  exerciseId: string;
+  primaryMuscleId: string | null;
+  excludeSetId: string;
+}): Promise<Set[]> {
+  const db = await getDb();
+  const params: (string | number)[] = [];
+  let scopeJoin = '';
+  let scopeWhere = '';
+
+  if (opts.scope === 'exercise') {
+    scopeWhere = 'AND s.exercise_id = ?';
+    params.push(opts.exerciseId);
+  } else if (opts.scope === 'muscle' && opts.primaryMuscleId) {
+    scopeJoin = 'INNER JOIN exercises e ON e.id = s.exercise_id';
+    scopeWhere = 'AND e.primary_muscle_id = ?';
+    params.push(opts.primaryMuscleId);
+  } else if (opts.scope === 'muscle') {
+    // Source exercise has no primary muscle — fall back to same-exercise only.
+    scopeWhere = 'AND s.exercise_id = ?';
+    params.push(opts.exerciseId);
+  }
+
+  const rows = await db.getAllAsync<SetRow>(
+    `SELECT s.* FROM sets s
+     INNER JOIN set_videos v ON v.set_id = s.id AND v.availability_status = 'available'
+     ${scopeJoin}
+     WHERE s.id != ? ${scopeWhere}
+     ORDER BY s.performed_at DESC`,
+    opts.excludeSetId,
     ...params,
   );
   return rows.map(mapSetRow);

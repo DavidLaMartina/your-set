@@ -246,10 +246,7 @@ export default function SetDetailScreen() {
       {videoSection}
 
       <PrimaryButton label="Edit set" variant="ghost" onPress={() => setMode('edit')} />
-      <PrimaryButton
-        label="Compare with prior set"
-        onPress={() => router.push(setCompareHref(set.id))}
-      />
+      <PrimaryButton label="Compare" onPress={() => router.push(setCompareHref(set.id))} />
     </Screen>
   );
 }

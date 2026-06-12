@@ -1,30 +1,47 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/primary-button';
 import { Screen } from '@/components/screen';
 import { SetListCard } from '@/components/set-list-card';
+import {
+  EMPTY_SET_FILTERS,
+  SetFilters,
+  countActiveSetFilters,
+  setFilterValuesToQuery,
+  type SetFilterValues,
+} from '@/components/set-filters';
 import { AppText } from '@/components/ui/app-text';
 import { deleteLoggedSet } from '@/features/sets/services/set-log-service';
 import { listRecentSets, type RecentSetRow } from '@/features/sets/services/recent-sets-service';
+import * as ReferenceRepo from '@/lib/db/repositories/reference-repository';
 import { confirmDestructive } from '@/lib/confirm-delete';
 import { setDeleteNeedsConfirmation } from '@/lib/set-delete';
 import { formatSetLabel } from '@/lib/format';
 import { exercisePickerForLogSetHref } from '@/lib/navigation';
+import type { Manufacturer } from '@/types/domain';
 
 export default function SetsScreen() {
   const [rows, setRows] = useState<RecentSetRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<SetFilterValues>(EMPTY_SET_FILTERS);
+  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const activeFilters = countActiveSetFilters(filters);
+  const query = useMemo(() => setFilterValuesToQuery(filters), [filters]);
+
+  useEffect(() => {
+    void ReferenceRepo.listManufacturers().then(setManufacturers);
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      setRows(await listRecentSets());
+      setRows(await listRecentSets(query));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [query]);
 
   useFocusEffect(
     useCallback(() => {
@@ -74,6 +91,8 @@ export default function SetsScreen() {
         onPress={() => router.push(exercisePickerForLogSetHref())}
       />
 
+      <SetFilters value={filters} onChange={setFilters} manufacturers={manufacturers} />
+
       {loading && rows.length === 0 ? (
         <AppText variant="body" muted>
           Loading…
@@ -82,7 +101,9 @@ export default function SetsScreen() {
 
       {!loading && rows.length === 0 ? (
         <AppText variant="body" muted>
-          No sets logged yet. Tap + Log set to record one.
+          {activeFilters > 0
+            ? 'No sets match these filters.'
+            : 'No sets logged yet. Tap + Log set to record one.'}
         </AppText>
       ) : null}
 

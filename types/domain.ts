@@ -171,7 +171,7 @@ export type SetVideo = {
   updatedAt: string;
 };
 
-/** Filters for set-first queries (exercise / date / load). */
+/** Filters for set-first queries (exercise / date / load / brand / video). */
 export type SetListFilters = {
   exerciseId?: string;
   sessionInstanceId?: string;
@@ -181,7 +181,14 @@ export type SetListFilters = {
   weightMax?: number;
   repsMin?: number;
   repsMax?: number;
+  manufacturerId?: string;
+  /** When true, only sets that have a playable (available) video. */
+  hasVideo?: boolean;
 };
+
+/** Scope for the compare target picker. */
+export const COMPARE_SCOPES = ['exercise', 'muscle', 'all'] as const;
+export type CompareScope = (typeof COMPARE_SCOPES)[number];
 
 /** Enriched types for UI */
 
